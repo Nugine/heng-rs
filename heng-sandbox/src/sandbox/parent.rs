@@ -1,5 +1,5 @@
 use super::cgroup::Cgroup;
-use super::{Args, Output};
+use super::{SandboxArgs, SandboxOutput};
 
 use std::io;
 use std::mem::MaybeUninit;
@@ -9,7 +9,12 @@ use anyhow::{Context, Result};
 use log::debug;
 use nix::unistd::Pid;
 
-pub fn run_parent(_args: &Args, child_pid: Pid, t0: Instant, cgroup: &Cgroup) -> Result<Output> {
+pub fn run_parent(
+    _args: &SandboxArgs,
+    child_pid: Pid,
+    t0: Instant,
+    cgroup: &Cgroup,
+) -> Result<SandboxOutput> {
     let (status, rusage) = wait4(child_pid).context("failed to wait4")?;
 
     debug!("status = {:?}", status);
@@ -35,7 +40,7 @@ pub fn run_parent(_args: &Args, child_pid: Pid, t0: Instant, cgroup: &Cgroup) ->
 
     debug!("statistics = {:?}", s);
 
-    Ok(Output {
+    Ok(SandboxOutput {
         code,
         signal,
         status,

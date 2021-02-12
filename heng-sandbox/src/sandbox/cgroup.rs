@@ -1,4 +1,4 @@
-use super::Args;
+use super::SandboxArgs;
 
 use std::fs::File;
 use std::io::Write as _;
@@ -86,7 +86,7 @@ impl Cgroup {
         })
     }
 
-    pub fn child_setup(&self, args: &Args, child_pid: Pid) -> Result<()> {
+    pub fn child_setup(&self, args: &SandboxArgs, child_pid: Pid) -> Result<()> {
         add_pid_to_cgroup(&self.cg_cpu, child_pid).context("failed to add pid to cgroup")?;
         add_pid_to_cgroup(&self.cg_memory, child_pid).context("failed to add pid to cgroup")?;
 

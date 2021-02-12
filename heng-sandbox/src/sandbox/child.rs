@@ -1,18 +1,19 @@
 use super::cgroup::Cgroup;
-use super::Args;
+use super::SandboxArgs;
 
 use std::convert::Infallible as Never;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::io;
+use std::path::Path;
 use std::ptr;
 
 use anyhow::{Context, Result};
 use fcntl::OFlag;
 use nix::fcntl;
 use nix::sys::stat::Mode;
-use nix::unistd::{self, Gid,  Uid};
+use nix::unistd::{self, Gid, Uid};
 
-pub fn run_child(args: &Args, cgroup: &Cgroup) -> Result<Never> {
+pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
     let child_pid = unistd::getpid();
 
     if let Some(ref stdin) = args.stdin {
@@ -44,48 +45,53 @@ pub fn run_child(args: &Args, cgroup: &Cgroup) -> Result<Never> {
         unistd::setuid(uid).context("failed to set uid")?;
     }
 
-    execvp(args.bin.as_c_str(), args.args.as_slice())
+    execvp(&args.bin, &args.args)
 }
 
-fn redirect_stdin(stdin: &CStr) -> nix::Result<()> {
-    let newfd = fcntl::open(stdin, OFlag::O_RDONLY | OFlag::O_CLOEXEC, Mode::empty())?;
-    unistd::dup2(libc::STDIN_FILENO, newfd)?;
-    unistd::close(newfd)?;
+fn redirect_stdin(stdin: &Path) -> nix::Result<()> {
+    let file_fd = fcntl::open(stdin, OFlag::O_RDONLY | OFlag::O_CLOEXEC, Mode::empty())?;
+    unistd::dup2(file_fd, libc::STDIN_FILENO)?;
+    unistd::close(file_fd)?;
     Ok(())
 }
 
-fn redirect_stdout(stdout: &CStr) -> nix::Result<()> {
-    let newfd = fcntl::open(
+fn redirect_stdout(stdout: &Path) -> nix::Result<()> {
+    let file_fd = fcntl::open(
         stdout,
-        OFlag::O_WRONLY | OFlag::O_TRUNC | OFlag::O_CLOEXEC,
+        OFlag::O_WRONLY | OFlag::O_CREAT | OFlag::O_TRUNC | OFlag::O_CLOEXEC,
         Mode::from_bits_truncate(0o644),
     )?;
-    unistd::dup2(libc::STDOUT_FILENO, newfd)?;
-    unistd::close(newfd)?;
+    unistd::dup2(file_fd, libc::STDOUT_FILENO)?;
+    unistd::close(file_fd)?;
     Ok(())
 }
 
-fn redirect_stderr(stderr: &CStr) -> nix::Result<()> {
-    let newfd = fcntl::open(
+fn redirect_stderr(stderr: &Path) -> nix::Result<()> {
+    let file_fd = fcntl::open(
         stderr,
-        OFlag::O_WRONLY | OFlag::O_TRUNC | OFlag::O_CLOEXEC,
+        OFlag::O_WRONLY | OFlag::O_CREAT | OFlag::O_TRUNC | OFlag::O_CLOEXEC,
         Mode::from_bits_truncate(0o644),
     )?;
-    unistd::dup2(libc::STDERR_FILENO, newfd)?;
-    unistd::close(newfd)?;
+    unistd::dup2(file_fd, libc::STDERR_FILENO)?;
+    unistd::close(file_fd)?;
     Ok(())
 }
 
-fn execvp(bin: &CStr, args: &[CString]) -> Result<Never> {
-    let execvp_args: Vec<*const libc::c_char> = {
-        let mut argv = Vec::with_capacity(args.len() + 2);
-        argv.push(bin.as_ptr());
-        argv.extend(args.iter().map(|a| a.as_ptr()));
-        argv.push(ptr::null());
-        argv
-    };
+fn execvp(bin: &str, args: &[String]) -> Result<Never> {
+    let bin = CString::new(bin)?;
 
-    unsafe { libc::execvp(bin.as_ptr(), execvp_args.as_ptr()) };
+    let mut c_args = Vec::new();
+    let mut argv: Vec<*const libc::c_char> = Vec::with_capacity(args.len() + 2);
+
+    argv.push(bin.as_ptr());
+    for a in args {
+        let c = CString::new(a.as_str())?;
+        argv.push(c.as_ptr());
+        c_args.push(c);
+    }
+    argv.push(ptr::null());
+
+    unsafe { libc::execvp(bin.as_ptr(), argv.as_ptr()) };
 
     Err(io::Error::last_os_error()).context("failed to execvp")
 }

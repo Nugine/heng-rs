@@ -4,10 +4,10 @@ mod parent;
 
 use self::cgroup::Cgroup;
 
-use std::ffi::CString;
 use std::fs::File;
 use std::io;
 use std::path::PathBuf;
+use std::process::Command;
 use std::time::Instant;
 
 use anyhow::{Context as _, Result};
@@ -16,21 +16,19 @@ use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
 #[derive(Debug, Serialize, Deserialize, StructOpt)]
-pub struct Args {
-    #[structopt(parse(try_from_str = CString::new))]
-    pub bin: CString,
+pub struct SandboxArgs {
+    pub bin: String,
 
-    #[structopt(parse(try_from_str = CString::new))]
-    pub args: Vec<CString>,
+    pub args: Vec<String>,
 
-    #[structopt(long, parse(try_from_str = CString::new))]
-    pub stdin: Option<CString>,
+    #[structopt(long)]
+    pub stdin: Option<PathBuf>,
 
-    #[structopt(long, parse(try_from_str = CString::new))]
-    pub stdout: Option<CString>,
+    #[structopt(long)]
+    pub stdout: Option<PathBuf>,
 
-    #[structopt(long, parse(try_from_str = CString::new))]
-    pub stderr: Option<CString>,
+    #[structopt(long)]
+    pub stderr: Option<PathBuf>,
 
     #[structopt(long)]
     pub uid: Option<u32>,
@@ -46,7 +44,7 @@ pub struct Args {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Output {
+pub struct SandboxOutput {
     pub code: i32,
     pub signal: i32,
     pub status: i32,
@@ -58,7 +56,7 @@ pub struct Output {
     pub memory: u64,    // KiB
 }
 
-pub fn run(args: Args) -> Result<()> {
+pub fn run(args: SandboxArgs) -> Result<()> {
     let cgroup = Cgroup::new(rand::random()).context("failed to create cgroup")?;
 
     let t0 = Instant::now();
@@ -69,13 +67,16 @@ pub fn run(args: Args) -> Result<()> {
             write_output(&args, &output)
         }
         unistd::ForkResult::Child => {
-            child::run_child(&args, &cgroup)?;
+            if let Err(err) = child::run_child(&args, &cgroup) {
+                eprintln!("{:?}", err);
+                panic!("failed to prepare child");
+            }
             unreachable!() // after evecvp
         }
     }
 }
 
-fn write_output(args: &Args, output: &Output) -> Result<()> {
+fn write_output(args: &SandboxArgs, output: &SandboxOutput) -> Result<()> {
     let stdout;
     let mut stdout_lock;
     let mut out_file;
@@ -95,4 +96,40 @@ fn write_output(args: &Args, output: &Output) -> Result<()> {
     serde_json::to_writer(&mut *out, &output)?;
     writeln!(out)?;
     Ok(())
+}
+
+impl SandboxArgs {
+    pub fn serialize_into_cmd(&self, cmd: &mut Command) {
+        if let Some(ref stdin) = self.stdin {
+            cmd.arg("--stdin").arg(stdin);
+        }
+
+        if let Some(ref stdout) = self.stdout {
+            cmd.arg("--stdout").arg(stdout);
+        }
+
+        if let Some(ref stderr) = self.stderr {
+            cmd.arg("--stderr").arg(stderr);
+        }
+
+        if let Some(uid) = self.uid {
+            cmd.arg("--uid").arg(uid.to_string());
+        }
+
+        if let Some(gid) = self.gid {
+            cmd.arg("--gid").arg(gid.to_string());
+        }
+
+        if let Some(limit_max_pids) = self.limit_max_pids {
+            cmd.arg("--limit_max_pids").arg(limit_max_pids.to_string());
+        }
+
+        if let Some(ref sandbox_output) = self.sandbox_output {
+            cmd.arg("-o").arg(sandbox_output);
+        }
+
+        cmd.arg("--");
+        cmd.arg(&self.bin);
+        cmd.args(&self.args);
+    }
 }
