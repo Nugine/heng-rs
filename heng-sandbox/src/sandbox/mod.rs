@@ -1,0 +1,70 @@
+mod cgroup;
+mod child;
+mod parent;
+
+use self::cgroup::Cgroup;
+
+use std::ffi::CString;
+use std::time::Instant;
+
+use anyhow::{Context as _, Result};
+use nix::unistd;
+use serde::{Deserialize, Serialize};
+use structopt::StructOpt;
+
+#[derive(Debug, Serialize, Deserialize, StructOpt)]
+pub struct Args {
+    #[structopt(parse(try_from_str = CString::new))]
+    pub bin: CString,
+
+    #[structopt(parse(try_from_str = CString::new))]
+    pub args: Vec<CString>,
+
+    #[structopt(long, parse(try_from_str = CString::new))]
+    pub stdin: Option<CString>,
+
+    #[structopt(long, parse(try_from_str = CString::new))]
+    pub stdout: Option<CString>,
+
+    #[structopt(long, parse(try_from_str = CString::new))]
+    pub stderr: Option<CString>,
+
+    #[structopt(long)]
+    pub uid: Option<u32>,
+
+    #[structopt(long)]
+    pub gid: Option<u32>,
+
+    #[structopt(long)]
+    pub limit_max_pids: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Output {
+    pub code: i32,
+    pub signal: i32,
+    pub status: i32,
+
+    pub real_time: u64, // milliseconds
+    pub sys_time: u64,  // milliseconds
+    pub user_time: u64, // milliseconds
+    pub cpu_time: u64,  // milliseconds
+    pub memory: u64,    // KiB
+}
+
+pub fn run(args: Args) -> Result<Output> {
+    let cgroup = Cgroup::new(rand::random()).context("failed to create cgroup")?;
+
+    let t0 = Instant::now();
+    match unsafe { unistd::fork() }.context("failed to fork")? {
+        unistd::ForkResult::Parent { child } => {
+            env_logger::init();
+            let output = parent::run_parent(&args, child, t0, &cgroup)?;
+            Ok(output)
+        }
+        unistd::ForkResult::Child => {
+            child::run_child(&args, &cgroup)?;
+            unreachable!() // after evecvp
+        }
+    }
+}

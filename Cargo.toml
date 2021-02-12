@@ -3,8 +3,10 @@ members = [
     "heng-controller",
     "heng-judger",
     "heng-protocol",
+    "heng-sandbox",
 ]
 
+# FIXME: remove the patch after actix-web has moved to v4
 
 [patch.crates-io]
 actix-web = { git = "https://github.com/actix/actix-web.git" }
