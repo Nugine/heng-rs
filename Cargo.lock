@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "actix-http"
 version = "3.0.0-beta.3"
-source = "git+https://github.com/actix/actix-web.git#4fc7d7675964b8451ab17aea3a8998e3db64e87e"
+source = "git+https://github.com/actix/actix-web.git#ce9b2770e2c7931cd29b574101cfbcbcba3c399b"
 dependencies = [
  "actix-codec",
  "actix-rt",
@@ -361,6 +361,16 @@ name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
+
+[[package]]
+name = "bincode"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f30d3a39baa26f9651f17b375061f3233dde33424a8b72b0dbe93a68a0bc896d"
+dependencies = [
+ "byteorder",
+ "serde",
+]
 
 [[package]]
 name = "bitflags"
@@ -892,6 +902,7 @@ name = "heng-sandbox"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "env_logger",
  "libc",
  "log",
