@@ -1,0 +1,7 @@
+[server]
+host = "localhost"
+port = 8000
+
+[redis]
+url = "redis://localhost:6379"
+key_prefix = "hc"
