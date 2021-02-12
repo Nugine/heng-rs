@@ -6,3 +6,6 @@ port = 8000
 url = "redis://localhost:6379"
 key_prefix = "hc"
 max_open = 10
+
+[judger]
+token_ttl = 5000

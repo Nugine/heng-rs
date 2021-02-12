@@ -13,6 +13,9 @@ pub struct Config {
 
     #[validate]
     pub redis: Redis,
+
+    #[validate]
+    pub judger: Judger,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -33,6 +36,12 @@ pub struct Redis {
 
     #[validate(range(max = 64))]
     pub max_open: u64,
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Judger {
+    #[validate(range(max = 60000))]
+    pub token_ttl: u64, // ms
 }
 
 static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();

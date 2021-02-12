@@ -11,20 +11,20 @@ pub type Connection = mobc::Connection<RedisConnectionManager>;
 pub use redis::aio::ConnectionLike;
 
 pub fn register() -> Result<impl Fn(&mut web::ServiceConfig) + Clone> {
-    info!("initializing redis state");
-    let state = web::Data::new(RedisState::new()?);
-    info!("redis state is initialized");
+    info!("initializing redis module");
+    let state = web::Data::new(RedisModule::new()?);
+    info!("redis module is initialized");
 
     Ok(move |cfg: &mut web::ServiceConfig| {
         cfg.app_data(state.clone());
     })
 }
 
-pub struct RedisState {
+pub struct RedisModule {
     pool: mobc::Pool<RedisConnectionManager>,
 }
 
-impl RedisState {
+impl RedisModule {
     pub fn new() -> Result<Self> {
         let config = Config::global();
         let redis_url = config.redis.url.as_str();

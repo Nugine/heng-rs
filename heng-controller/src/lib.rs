@@ -1,8 +1,8 @@
 #![deny(clippy::all)]
 
 pub mod config;
+pub mod judger;
 pub mod redis;
-pub mod test;
 
 // -------------------------------------------------------------------------
 
@@ -17,15 +17,15 @@ const GLOBAL_PREFIX: &str = "/v1";
 pub async fn run() -> Result<()> {
     let config = Config::global();
 
-    let test = self::test::register()?;
     let redis = self::redis::register()?;
+    let judger = self::judger::register()?;
 
     // build server
     let server: _ = HttpServer::new(move || {
         App::new().service(
             web::scope(GLOBAL_PREFIX)
-                .configure(test.clone())
-                .configure(redis.clone()),
+                .configure(redis.clone())
+                .configure(judger.clone()),
         )
     });
 
