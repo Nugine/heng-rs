@@ -1,5 +1,6 @@
 pub mod config;
 pub mod judger;
+pub mod redis;
 
 use std::sync::Arc;
 
@@ -12,6 +13,7 @@ use heng_protocol::internal::ws_json::Message as WsMessage;
 
 use anyhow::Result;
 use futures::stream::StreamExt;
+use redis::RedisModule;
 use tokio::sync::mpsc;
 use tokio::task;
 use tokio_tungstenite as ws;
@@ -21,16 +23,19 @@ use tracing::{error, info, warn};
 type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
 
 pub async fn run() -> Result<()> {
-    let config = Config::global();
+    info!("initializing redis module");
+    let redis = RedisModule::new()?;
+    info!("redis module is initialized");
 
+    let config = Config::global();
     let remote_domain = config.client.remote_domain.as_str();
 
-    // TODO: reconnect
+    // TODO: try reconnect
 
     let token = get_token(remote_domain).await?;
     let ws_stream = connect_ws(remote_domain, &token).await?;
 
-    main_loop(ws_stream).await?;
+    main_loop(ws_stream, redis).await?;
 
     Ok(())
 }
@@ -64,7 +69,7 @@ async fn connect_ws(remote_domain: &str, token: &str) -> Result<WsStream> {
     Ok(ws_stream)
 }
 
-async fn main_loop(ws_stream: WsStream) -> Result<()> {
+async fn main_loop(ws_stream: WsStream, redis: RedisModule) -> Result<()> {
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     let (msg_tx, mut msg_rx) = mpsc::channel::<WsMessage>(4096);
@@ -77,7 +82,7 @@ async fn main_loop(ws_stream: WsStream) -> Result<()> {
         <Result<()>>::Ok(())
     });
 
-    let judger = Arc::new(Judger::new(msg_tx.clone()));
+    let judger = Arc::new(Judger::new(msg_tx.clone(), redis));
 
     while let Some(frame) = ws_rx.next().await {
         use tungstenite::Message::*;

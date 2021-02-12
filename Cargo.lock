@@ -804,6 +804,7 @@ dependencies = [
  "dotenv",
  "futures",
  "heng-protocol",
+ "mobc-redis",
  "once_cell",
  "reqwest",
  "serde",

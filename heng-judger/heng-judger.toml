@@ -5,6 +5,5 @@ secret_key = "example-sk"
 
 [redis]
 url = "redis://localhost:6379"
-key_prefix = "hc"
+key_prefix = "hj"
 max_open = 10
-

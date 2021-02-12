@@ -1,3 +1,5 @@
+use crate::redis::RedisModule;
+
 use heng_protocol::internal::ws_json::Message as WsMessage;
 
 use std::collections::HashMap;
@@ -11,15 +13,17 @@ pub struct Judger {
     sender: mpsc::Sender<WsMessage>,
     seq: AtomicU32,
     callbacks: Mutex<HashMap<u32, oneshot::Sender<WsMessage>>>,
+    redis: RedisModule,
 }
 
 impl Judger {
     #[allow(clippy::new_without_default)]
-    pub fn new(sender: mpsc::Sender<WsMessage>) -> Self {
+    pub fn new(sender: mpsc::Sender<WsMessage>, redis: RedisModule) -> Self {
         Self {
             sender,
             seq: AtomicU32::new(0),
             callbacks: Mutex::new(HashMap::new()),
+            redis,
         }
     }
 
