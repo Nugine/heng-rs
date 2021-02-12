@@ -1,17 +1,30 @@
 use crate::config::Config;
 
+use actix_web::web;
 use anyhow::Result;
 use mobc_redis::mobc;
 use mobc_redis::redis;
 use mobc_redis::RedisConnectionManager;
+use tracing::info;
 
 pub type Connection = mobc::Connection<RedisConnectionManager>;
+pub use redis::aio::ConnectionLike;
 
-pub struct Redis {
+pub fn register() -> Result<impl Fn(&mut web::ServiceConfig) + Clone> {
+    info!("initializing redis state");
+    let state = web::Data::new(RedisState::new()?);
+    info!("redis state is initialized");
+
+    Ok(move |cfg: &mut web::ServiceConfig| {
+        cfg.app_data(state.clone());
+    })
+}
+
+pub struct RedisState {
     pool: mobc::Pool<RedisConnectionManager>,
 }
 
-impl Redis {
+impl RedisState {
     pub fn new() -> Result<Self> {
         let config = Config::global();
         let redis_url = config.redis.url.as_str();
@@ -22,7 +35,7 @@ impl Redis {
         Ok(Self { pool })
     }
 
-    pub async fn get_key_prefix(&self) -> &str {
+    pub fn get_key_prefix(&self) -> &str {
         let config = Config::global();
         &config.redis.key_prefix
     }

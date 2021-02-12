@@ -4,35 +4,29 @@ pub mod config;
 pub mod redis;
 pub mod test;
 
+// -------------------------------------------------------------------------
+
 use crate::config::Config;
-use crate::redis::Redis;
 
 use actix_web::{web, App, HttpServer};
 use anyhow::Result;
 use tracing::info;
-
-fn register(cfg: &mut web::ServiceConfig) {
-    crate::test::register(cfg);
-}
 
 const GLOBAL_PREFIX: &str = "/v1";
 
 pub async fn run() -> Result<()> {
     let config = Config::global();
 
-    // init redis
-    let redis = {
-        info!("initializing redis module");
-        let redis = Redis::new()?;
-        info!("redis module is initialized");
-        web::Data::new(redis)
-    };
+    let test = self::test::register()?;
+    let redis = self::redis::register()?;
 
     // build server
     let server: _ = HttpServer::new(move || {
-        App::new()
-            .app_data(redis.clone())
-            .service(web::scope(GLOBAL_PREFIX).configure(register))
+        App::new().service(
+            web::scope(GLOBAL_PREFIX)
+                .configure(test.clone())
+                .configure(redis.clone()),
+        )
     });
 
     // bind address
