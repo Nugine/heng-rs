@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "heng-controller",
+    "heng-judger",
+    "heng-protocol",
+]
