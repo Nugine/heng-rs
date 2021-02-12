@@ -1,0 +1,10 @@
+[client]
+remote_domain = "localhost:8000"
+access_key = "example-ak"
+secret_key = "example-sk"
+
+[redis]
+url = "redis://localhost:6379"
+key_prefix = "hc"
+max_open = 10
+

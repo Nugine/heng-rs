@@ -9,7 +9,7 @@ pub enum Message {
     Request {
         seq: u32,
         time: DateTime<Utc>,
-        body: Box<RawValue>,
+        body: Request,
     },
     #[serde(rename = "res")]
     Response {
@@ -17,4 +17,14 @@ pub enum Message {
         time: DateTime<Utc>,
         body: Option<Box<RawValue>>,
     },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum Request {
+    Judge(JudgeArgs),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JudgeArgs {
+    pub placeholder: u32,
 }

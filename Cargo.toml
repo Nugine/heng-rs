@@ -4,3 +4,12 @@ members = [
     "heng-judger",
     "heng-protocol",
 ]
+
+
+[patch.crates-io]
+actix-web = { git = "https://github.com/actix/actix-web.git" }
+actix-rt = { git = "https://github.com/actix/actix-net.git" }
+actix-service = { git = "https://github.com/actix/actix-net.git" }
+actix-http = { git = "https://github.com/actix/actix-web.git" }
+actix-web-actors = { git = "https://github.com/actix/actix-web.git" }
+actix = { git = "https://github.com/actix/actix.git" }

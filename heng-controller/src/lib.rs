@@ -3,6 +3,7 @@
 pub mod config;
 pub mod judger;
 pub mod redis;
+pub mod utils;
 
 // -------------------------------------------------------------------------
 

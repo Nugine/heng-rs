@@ -1,4 +1,4 @@
-use heng_controller::config::Config;
+use heng_judger::config::Config;
 
 use std::env;
 
@@ -23,7 +23,7 @@ fn setup_tracing() {
         .init();
 }
 
-const CONFIG_PATH: &str = "heng-controller.toml";
+const CONFIG_PATH: &str = "heng-judger.toml";
 
 #[tracing::instrument(err)]
 fn load_config() -> Result<()> {
@@ -36,11 +36,11 @@ fn load_config() -> Result<()> {
     Ok(())
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     dotenv().ok();
     setup_tracing();
 
     load_config()?;
-    heng_controller::run().await
+    heng_judger::run().await
 }

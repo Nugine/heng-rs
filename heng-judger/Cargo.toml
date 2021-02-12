@@ -4,6 +4,40 @@ version = "0.1.0"
 authors = ["Nugine <nugine@foxmail.com>"]
 edition = "2018"
 
+[dependencies]
+anyhow = "1.0.38"
+once_cell = "1.5.2"
+serde = { version = "1.0.123", features = ["derive"] }
+toml = "0.5.8"
+validator = { version = "0.12.0", features = ["derive"] }
+dotenv = "0.15.0"
+tokio = { version = "1.2.0", features = ["full"] }
+tokio-tungstenite = "0.13.0"
+reqwest = { version = "0.11.0", features = ["json"] }
+url = "2.2.0"
+futures = "0.3.12"
+serde_json = "1.0.62"
+chrono = "0.4.19"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[dependencies.heng-protocol]
+path = "../heng-protocol"
+
+# ----------------------------------------------
+
+# FIXME: waiting for tracing v0.2
+
+[dependencies.tracing]
+git = "https://github.com/tokio-rs/tracing.git"
+rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
+
+[dependencies.tracing-subscriber]
+git = "https://github.com/tokio-rs/tracing.git"
+rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
+
+[dependencies.tracing-error]
+git = "https://github.com/tokio-rs/tracing.git"
+rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
+
+# ----------------------------------------------

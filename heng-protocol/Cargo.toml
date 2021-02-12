@@ -10,3 +10,10 @@ edition = "2018"
 chrono = { version = "0.4.19", features = ["serde"] }
 serde = { version = "1.0.123", features = ["derive"] }
 serde_json = { version = "1.0.62", features = ["raw_value"] }
+validator = { version = "0.12.0", features = ["derive"] }
+
+# ----------------------------------------------
+
+# FIXME: waiting for actix-web v4
+
+actix = { git = "https://github.com/actix/actix.git" }
