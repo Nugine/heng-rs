@@ -178,7 +178,7 @@ dependencies = [
 [[package]]
 name = "actix-web"
 version = "4.0.0-beta.3"
-source = "git+https://github.com/actix/actix-web.git#d9d0d1d1a2e7b1380cb5ea05268f9c1cf6e2b13d"
+source = "git+https://github.com/actix/actix-web.git#ce9b2770e2c7931cd29b574101cfbcbcba3c399b"
 dependencies = [
  "actix-codec",
  "actix-http",
@@ -213,7 +213,7 @@ dependencies = [
 [[package]]
 name = "actix-web-actors"
 version = "4.0.0-beta.2"
-source = "git+https://github.com/actix/actix-web.git#d9d0d1d1a2e7b1380cb5ea05268f9c1cf6e2b13d"
+source = "git+https://github.com/actix/actix-web.git#ce9b2770e2c7931cd29b574101cfbcbcba3c399b"
 dependencies = [
  "actix",
  "actix-codec",
@@ -1441,9 +1441,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "991431c3519a3f36861882da93630ce66b52918dcf1b8e2fd66b397fc96f28df"
+checksum = "c3d0b9745dc2debf507c8422de05d7226cc1f0644216dfdfead988f9b1ab32a7"
 dependencies = [
  "proc-macro2",
 ]
