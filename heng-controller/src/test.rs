@@ -7,6 +7,7 @@ pub fn register(cfg: &mut web::ServiceConfig) {
 }
 
 #[get("/config")]
-async fn show_config(config: web::Data<Config>) -> impl Responder {
-    HttpResponse::Ok().json(config.as_ref())
+async fn show_config() -> impl Responder {
+    let config = Config::global();
+    HttpResponse::Ok().json(config)
 }

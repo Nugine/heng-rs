@@ -1,3 +1,5 @@
+use std::env;
+
 use heng_controller::config::Config;
 
 use anyhow::Result;
@@ -24,10 +26,14 @@ fn setup_tracing() {
 const CONFIG_PATH: &str = "heng-controller.toml";
 
 #[tracing::instrument(err)]
-fn load_config() -> Result<Config> {
-    let config = Config::from_file(CONFIG_PATH)?;
-    info!(?config, "config is loaded from {}", CONFIG_PATH);
-    Ok(config)
+fn load_config() -> Result<()> {
+    let path = env::current_dir()?.join(CONFIG_PATH);
+
+    info!("loading config from {}", path.display());
+    let config = Config::init_from_file(&path)?;
+    info!("config is loaded:\n{:#?}", config);
+
+    Ok(())
 }
 
 #[actix_web::main]
@@ -35,6 +41,6 @@ async fn main() -> Result<()> {
     dotenv().ok();
     setup_tracing();
 
-    let config = load_config()?;
-    heng_controller::run(config).await
+    load_config()?;
+    heng_controller::run().await
 }
