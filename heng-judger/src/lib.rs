@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+
 pub mod config;
 pub mod judger;
 pub mod redis;
