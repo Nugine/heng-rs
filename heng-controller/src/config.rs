@@ -31,9 +31,6 @@ pub struct Redis {
     #[validate(length(min = 1))]
     pub url: String,
 
-    #[validate(length(min = 1))]
-    pub key_prefix: String,
-
     #[validate(range(max = 64))]
     pub max_open: u64,
 }

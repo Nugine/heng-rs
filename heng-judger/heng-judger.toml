@@ -4,6 +4,5 @@ access_key = "example-ak"
 secret_key = "example-sk"
 
 [redis]
-url = "redis://localhost:6379"
-key_prefix = "hj"
+url = "redis://localhost:6379/1"
 max_open = 10

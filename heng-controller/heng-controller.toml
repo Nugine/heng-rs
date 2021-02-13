@@ -3,8 +3,7 @@ host = "localhost"
 port = 8080
 
 [redis]
-url = "redis://localhost:6379"
-key_prefix = "hc"
+url = "redis://localhost:6379/0"
 max_open = 10
 
 [judger]

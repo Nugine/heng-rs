@@ -35,11 +35,6 @@ impl RedisModule {
         Ok(Self { pool })
     }
 
-    pub fn get_key_prefix(&self) -> &str {
-        let config = Config::global();
-        &config.redis.key_prefix
-    }
-
     pub async fn get_connection(&self) -> Result<Connection> {
         Ok(self.pool.get().await?)
     }

@@ -31,7 +31,7 @@ async fn acquire_token(
         max_task_count: body.max_task_count,
         name: body.name,
         core_count: body.core_count,
-        system_info: body.system_info,
+        system_info: body.software,
         created_at: Utc::now(),
         state: JudgerState::Registered,
     };
