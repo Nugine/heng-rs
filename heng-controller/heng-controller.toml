@@ -1,6 +1,6 @@
 [server]
 host = "localhost"
-port = 8000
+port = 8080
 
 [redis]
 url = "redis://localhost:6379"

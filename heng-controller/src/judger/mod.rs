@@ -7,12 +7,12 @@ use anyhow::format_err;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
-use heng_protocol::internal::ws_json::{JudgeArgs, Request};
+use heng_protocol::internal::ws_json::{self, CreateJudgeArgs, Request, Response};
 use tracing::{error, info, warn};
 
 use crate::utils::ResultExt;
 
-use self::ws::{WsRpcRequest, WsRpcResponse};
+use self::ws::WsActorRequest;
 
 pub fn register() -> Result<impl Fn(&mut web::ServiceConfig) + Clone> {
     info!("initializing judger module");
@@ -54,7 +54,7 @@ enum JudgerState {
 }
 
 impl JudgerModule {
-    async fn call(&self, ws_id: &str, req: WsRpcRequest) -> Result<WsRpcResponse> {
+    async fn call(&self, ws_id: &str, req: Request) -> Result<Response> {
         let addr = match self.session_map.get(ws_id) {
             Some(weak) => match weak.upgrade() {
                 Some(a) => a,
@@ -69,7 +69,7 @@ impl JudgerModule {
             }
         };
 
-        let rx = addr.send(req).await.inspect_err(|err| {
+        let rx = addr.send(WsActorRequest(req)).await.inspect_err(|err| {
             error!(%err,"can not send request to ws actor");
         })?;
 
@@ -77,15 +77,22 @@ impl JudgerModule {
             .await
             .inspect_err(|err| error!(%err,"failed to receive a response"))?;
 
-        Ok(res)
+        Ok(res.0)
     }
 
     #[tracing::instrument(err, skip(self, args))]
-    pub async fn create_judge(&self, ws_id: &str, args: JudgeArgs) -> Result<()> {
-        let res = self.call(ws_id, WsRpcRequest(Request::Judge(args))).await?;
-        if res.0.is_some() {
-            warn!("expected null response");
+    pub async fn create_judge(&self, ws_id: &str, args: CreateJudgeArgs) -> Result<()> {
+        let res = self.call(ws_id, Request::CreateJudge(args)).await?;
+        match res {
+            ws_json::Response::Output(output) => {
+                if output.is_some() {
+                    warn!("expected null response");
+                }
+            }
+            ws_json::Response::Error(err) => return Err(anyhow::Error::new(err)),
         }
         Ok(())
     }
+
+    // fn report_status(&self, ws_id: &str, args:)
 }

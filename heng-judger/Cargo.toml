@@ -19,6 +19,7 @@ futures = "0.3.12"
 serde_json = "1.0.62"
 chrono = "0.4.19"
 mobc-redis = "0.7.0"
+dashmap = "4.0.2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -41,7 +41,7 @@ dependencies = [
 [[package]]
 name = "actix-http"
 version = "3.0.0-beta.3"
-source = "git+https://github.com/actix/actix-web.git#ce9b2770e2c7931cd29b574101cfbcbcba3c399b"
+source = "git+https://github.com/actix/actix-web.git#b37669cb3b47eeb60c161ff12156d1c877af91a2"
 dependencies = [
  "actix-codec",
  "actix-rt",
@@ -868,6 +868,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "dashmap",
  "dotenv",
  "futures",
  "heng-protocol",
@@ -894,6 +895,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "thiserror",
  "validator",
 ]
 
@@ -1905,6 +1907,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 dependencies = [
  "unicode-width",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76cc616c6abf8c8928e2fdcc0dbfab37175edd8fb49a4641066ad1364fdab146"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9be73a2caec27583d0046ef3796c3794f868a5bc813db689eed00c7631275cd1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

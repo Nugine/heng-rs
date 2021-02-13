@@ -1,21 +1,17 @@
 use super::{JudgerModule, JudgerState};
 
 use chrono::Utc;
-use dashmap::DashMap;
 use heng_protocol::internal::ws_json::Message as WsMessage;
-use serde_json::value::RawValue;
 
 use std::collections::HashMap;
-use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 
-use actix::{Actor, AsyncContext, Handler, Recipient, StreamHandler};
+use actix::{Actor, AsyncContext, Handler, StreamHandler};
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use serde::Deserialize;
 use tokio::sync::oneshot;
-use tokio::{task, time};
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 
 #[derive(Deserialize)]
 struct WebsocketQuery {
@@ -47,7 +43,7 @@ async fn websocket(
 pub struct WsSession {
     ws_id: String,
     seq: u32,
-    callbacks: HashMap<u32, oneshot::Sender<WsRpcResponse>>,
+    callbacks: HashMap<u32, oneshot::Sender<WsActorResponse>>,
     module: Arc<JudgerModule>,
 }
 
@@ -62,12 +58,12 @@ impl WsSession {
     }
 }
 
-pub struct WsRpcRequest(pub heng_protocol::internal::ws_json::Request);
+pub struct WsActorRequest(pub heng_protocol::internal::ws_json::Request);
 
-pub struct WsRpcResponse(pub Option<Box<RawValue>>);
+pub struct WsActorResponse(pub heng_protocol::internal::ws_json::Response);
 
-impl actix::Message for WsRpcRequest {
-    type Result = oneshot::Receiver<WsRpcResponse>;
+impl actix::Message for WsActorRequest {
+    type Result = oneshot::Receiver<WsActorResponse>;
 }
 
 impl Actor for WsSession {
@@ -112,11 +108,11 @@ impl Actor for WsSession {
     }
 }
 
-impl Handler<WsRpcRequest> for WsSession {
-    type Result = actix::MessageResult<WsRpcRequest>;
+impl Handler<WsActorRequest> for WsSession {
+    type Result = actix::MessageResult<WsActorRequest>;
 
-    fn handle(&mut self, msg: WsRpcRequest, ctx: &mut Self::Context) -> Self::Result {
-        actix::MessageResult(self.handle_controller_request(msg, ctx))
+    fn handle(&mut self, msg: WsActorRequest, ctx: &mut Self::Context) -> Self::Result {
+        actix::MessageResult(self.wsrpc(msg, ctx))
     }
 }
 
@@ -157,7 +153,7 @@ impl WsSession {
                 body,
             } => match self.callbacks.remove(&seq) {
                 Some(cb) => {
-                    if cb.send(WsRpcResponse(body)).is_err() {
+                    if cb.send(WsActorResponse(body)).is_err() {
                         warn!(?seq, ?time, "the callback has been cancelled")
                     }
                 }
@@ -172,11 +168,11 @@ impl WsSession {
         }
     }
 
-    fn handle_controller_request(
+    fn wsrpc(
         &mut self,
-        msg: WsRpcRequest,
+        msg: WsActorRequest,
         ctx: &mut ws::WebsocketContext<Self>,
-    ) -> oneshot::Receiver<WsRpcResponse> {
+    ) -> oneshot::Receiver<WsActorResponse> {
         self.seq = self.seq.wrapping_add(1);
         let seq = self.seq;
 

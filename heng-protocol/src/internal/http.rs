@@ -13,7 +13,7 @@ pub struct AcquireTokenRequest {
     pub core_count: Option<u32>,
 
     #[validate(length(max = 256))]
-    pub system_info: Option<String>,
+    pub software: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

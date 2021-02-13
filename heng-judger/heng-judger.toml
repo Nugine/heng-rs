@@ -1,5 +1,5 @@
 [client]
-remote_domain = "localhost:8000"
+remote_domain = "localhost:8080"
 access_key = "example-ak"
 secret_key = "example-sk"
 

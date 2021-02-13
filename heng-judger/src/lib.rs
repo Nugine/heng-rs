@@ -3,21 +3,25 @@
 pub mod config;
 pub mod judger;
 pub mod redis;
-
-use std::sync::Arc;
+mod utils;
 
 use crate::config::Config;
 use crate::judger::Judger;
 
-use futures::SinkExt;
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
 use heng_protocol::internal::ws_json::Message as WsMessage;
 
-use anyhow::Result;
+use std::sync::Arc;
+use std::time::Duration;
+
+use anyhow::{format_err, Result};
+use chrono::Local;
 use futures::stream::StreamExt;
+use futures::SinkExt;
 use redis::RedisModule;
 use tokio::sync::mpsc;
 use tokio::task;
+use tokio::time;
 use tokio_tungstenite as ws;
 use tokio_tungstenite::tungstenite;
 use tracing::{error, info, warn};
@@ -25,21 +29,28 @@ use tracing::{error, info, warn};
 type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
 
 pub async fn run() -> Result<()> {
-    info!("initializing redis module");
-    let redis = RedisModule::new()?;
-    info!("redis module is initialized");
+    let mut retry: u64 = 0;
 
-    let config = Config::global();
-    let remote_domain = config.client.remote_domain.as_str();
+    loop {
+        match main_loop().await {
+            Ok(()) => return Ok(()),
+            Err(err) => {
+                error!(?err, "main loop error");
 
-    // TODO: try reconnect
+                retry += 1;
 
-    let token = get_token(remote_domain).await?;
-    let ws_stream = connect_ws(remote_domain, &token).await?;
+                let delay = if retry <= 16 { 1_u64 << retry } else { 60_000 };
 
-    main_loop(ws_stream, redis).await?;
-
-    Ok(())
+                info!(
+                    ?retry,
+                    "sleep for {} ms, try to reconnect at {}",
+                    delay,
+                    Local::now() + chrono::Duration::milliseconds(delay as i64)
+                );
+                time::sleep(Duration::from_millis(delay)).await;
+            }
+        }
+    }
 }
 
 #[tracing::instrument(err)]
@@ -52,14 +63,19 @@ async fn get_token(remote_domain: &str) -> Result<String> {
         max_task_count: 8,
         name: None,
         core_count: None,
-        system_info: None,
+        software: None,
     };
 
     let http_client = reqwest::Client::new();
     let res = http_client.post(&token_url).json(&body).send().await?;
-    let output = res.json::<AcquireTokenOutput>().await?;
-
-    Ok(output.token)
+    if res.status().is_success() {
+        let output = res.json::<AcquireTokenOutput>().await?;
+        Ok(output.token)
+    } else {
+        let text = res.text().await.unwrap();
+        error!(?text, "failed to acquire token");
+        Err(format_err!("failed to acquire token"))
+    }
 }
 
 #[tracing::instrument(err)]
@@ -71,7 +87,17 @@ async fn connect_ws(remote_domain: &str, token: &str) -> Result<WsStream> {
     Ok(ws_stream)
 }
 
-async fn main_loop(ws_stream: WsStream, redis: RedisModule) -> Result<()> {
+async fn main_loop() -> Result<()> {
+    info!("initializing redis module");
+    let redis = RedisModule::new()?;
+    info!("redis module is initialized");
+
+    let config = Config::global();
+    let remote_domain = config.client.remote_domain.as_str();
+
+    let token = get_token(remote_domain).await?;
+    let ws_stream = connect_ws(remote_domain, &token).await?;
+
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     let (msg_tx, mut msg_rx) = mpsc::channel::<WsMessage>(4096);
@@ -85,6 +111,11 @@ async fn main_loop(ws_stream: WsStream, redis: RedisModule) -> Result<()> {
     });
 
     let judger = Arc::new(Judger::new(msg_tx.clone(), redis));
+
+    {
+        let judger = Arc::clone(&judger);
+        task::spawn(async move { judger.report_status_loop().await });
+    }
 
     while let Some(frame) = ws_rx.next().await {
         use tungstenite::Message::*;
@@ -100,7 +131,7 @@ async fn main_loop(ws_stream: WsStream, redis: RedisModule) -> Result<()> {
                 let msg = match serde_json::from_str(&text) {
                     Ok(m) => m,
                     Err(err) => {
-                        error!(%err, "internal protocol: message format error");
+                        error!(%err, "internal protocol: message format error:\n{:?}\n",text);
                         return Err(err.into());
                     }
                 };
