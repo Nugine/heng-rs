@@ -1,4 +1,5 @@
-use super::SandboxArgs;
+use crate::signal::killall;
+use crate::SandboxArgs;
 
 use std::fs::File;
 use std::io::Write as _;
@@ -6,7 +7,7 @@ use std::str::FromStr;
 use std::{fmt, fs, io};
 
 use anyhow::{Context, Result};
-use log::debug;
+use log::{debug, warn};
 use nix::sys::stat::Mode;
 use nix::unistd::{self, AccessFlags, Pid};
 
@@ -62,6 +63,12 @@ where
     Ok(content.trim_end().parse::<T>()?)
 }
 
+fn remove_cgroup(cg_dir: &str) {
+    if let Err(err) = fs::remove_dir(cg_dir) {
+        warn!("failed to remove cgroup: {}, path = {}", err, cg_dir);
+    }
+}
+
 pub struct Cgroup {
     cg_cpu: String,
     cg_memory: String,
@@ -90,10 +97,19 @@ impl Cgroup {
         add_pid_to_cgroup(&self.cg_cpu, child_pid).context("failed to add pid to cgroup")?;
         add_pid_to_cgroup(&self.cg_memory, child_pid).context("failed to add pid to cgroup")?;
 
-        if let Some(pids_max) = args.limit_max_pids {
+        if let Some(memory_limit) = args.memory_limit {
+            write_cgroup(
+                &self.cg_memory,
+                "memory.limit_in_bytes",
+                memory_limit.saturating_mul(1024),
+            )
+            .context("failed to set memory limit")?;
+        }
+
+        if let Some(pids_max) = args.max_pids_limit {
             write_cgroup(&self.cg_pids, "pids.max", pids_max)
-                .context("failed to add pid to cgroup")?;
-            add_pid_to_cgroup(&&self.cg_pids, child_pid)?;
+                .context("failed to set max pids limit")?;
+            add_pid_to_cgroup(&&self.cg_pids, child_pid).context("failed to add pid to cgroup")?;
         }
 
         Ok(())
@@ -105,10 +121,34 @@ impl Cgroup {
         Ok(())
     }
 
+    pub fn killall(&self) -> Result<()> {
+        let content = fs::read_to_string(format!("{}/cgroup.procs", &self.cg_cpu))
+            .context("failed to read cgroup procs")?;
+
+        if content.is_empty() {
+            return Ok(());
+        }
+
+        let mut pids = Vec::new();
+        for t in content.split('\n') {
+            if !t.is_empty() {
+                let pid = t.parse::<i32>().unwrap();
+                pids.push(Pid::from_raw(pid))
+            }
+        }
+
+        killall(&pids);
+
+        Ok(())
+    }
+
     pub fn parent_cleanup(&self) -> Result<()> {
-        fs::remove_dir(&self.cg_cpu)?;
-        fs::remove_dir(&self.cg_memory)?;
-        fs::remove_dir(&self.cg_pids)?;
+        self.killall()?;
+
+        remove_cgroup(&self.cg_cpu);
+        remove_cgroup(&self.cg_memory);
+        remove_cgroup(&self.cg_pids);
+
         Ok(())
     }
 

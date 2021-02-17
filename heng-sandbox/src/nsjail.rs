@@ -1,13 +1,10 @@
-use std::fs;
-use std::os::unix::prelude::OsStrExt;
+use crate::{SandboxArgs, SandboxOutput};
+
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use anyhow::{format_err, Context, Result};
 use log::{debug, error};
-
-pub use crate::sandbox::SandboxArgs;
-pub use crate::sandbox::SandboxOutput;
 
 pub struct NsjailArgs {
     config: PathBuf,
@@ -51,26 +48,15 @@ pub fn exec(nsjail: &NsjailArgs, sandbox: &SandboxArgs) -> Result<SandboxOutput>
 
     debug!("executing command\n{:?}\n", cmd);
 
-    let mut child = cmd.spawn().context("failed to spawn child process")?;
-
-    let child_stdin = child.stdin.as_mut().unwrap();
-    bincode::serialize_into(child_stdin, sandbox).unwrap();
-
-    let child = child
+    let child = cmd
+        .spawn()
+        .context("failed to spawn child process")?
         .wait_with_output()
         .context("failed to wait child process")?;
 
     if child.status.success() {
-        let output = match sandbox.sandbox_output {
-            Some(ref output_path) => {
-                fs::read(output_path).context("failed to read sandbox_output")?
-            }
-            None => child.stdout,
-        };
-
-        dbg!(std::ffi::OsStr::from_bytes(&output));
         let output: SandboxOutput =
-            serde_json::from_slice(&output).context("failed to parse sandbox json output")?;
+            serde_json::from_slice(&child.stdout).context("failed to parse sandbox json output")?;
         Ok(output)
     } else {
         let err = String::from_utf8(child.stderr).unwrap();
@@ -102,8 +88,8 @@ pub fn exec(nsjail: &NsjailArgs, sandbox: &SandboxArgs) -> Result<SandboxOutput>
 //         stderr: Some("/tmp/heng-sandbox/testerr".into()),
 //         uid: None,
 //         gid: None,
-//         limit_max_pids: None,
-//         sandbox_output: None,
+//         memory_limit: None,
+//         max_pids_limit: None,
 //     };
 //     let output = exec(&nsjail_args, &sandbox_args).unwrap();
 //     dbg!(output);

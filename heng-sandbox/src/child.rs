@@ -1,5 +1,6 @@
-use super::cgroup::Cgroup;
-use super::SandboxArgs;
+use crate::cgroup::Cgroup;
+use crate::libc_call;
+use crate::SandboxArgs;
 
 use std::convert::Infallible as Never;
 use std::ffi::CString;
@@ -12,9 +13,12 @@ use fcntl::OFlag;
 use nix::fcntl;
 use nix::sys::stat::Mode;
 use nix::unistd::{self, Gid, Uid};
+use rlimit::{Resource, Rlim};
 
 pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
     let child_pid = unistd::getpid();
+
+    libc_call(|| unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) })?;
 
     if let Some(ref stdin) = args.stdin {
         redirect_stdin(stdin).context("failed to redirect stdin")?;
@@ -27,6 +31,23 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
     if let Some(ref stderr) = args.stderr {
         redirect_stderr(stderr).context("failed to redirect stderr")?;
     }
+
+    if let Some(rlimit_cpu) = args.rlimit_cpu.map(|r| Rlim::from_raw(r as _)) {
+        Resource::CPU.set(rlimit_cpu, rlimit_cpu)?;
+    }
+
+    let execvp_bin = CString::new(args.bin.as_str())?;
+
+    let mut c_args = Vec::new();
+    let mut execvp_argv: Vec<*const libc::c_char> = Vec::with_capacity(args.args.len() + 2);
+
+    execvp_argv.push(execvp_bin.as_ptr());
+    for a in &args.args {
+        let c = CString::new(a.as_str())?;
+        execvp_argv.push(c.as_ptr());
+        c_args.push(c);
+    }
+    execvp_argv.push(ptr::null());
 
     cgroup
         .child_setup(args, child_pid)
@@ -45,7 +66,9 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
         unistd::setuid(uid).context("failed to set uid")?;
     }
 
-    execvp(&args.bin, &args.args)
+    unsafe { libc::execvp(execvp_bin.as_ptr(), execvp_argv.as_ptr()) };
+
+    Err(io::Error::last_os_error()).with_context(|| format!("failed to execvp: bin = {}", args.bin))
 }
 
 fn redirect_stdin(stdin: &Path) -> nix::Result<()> {
@@ -75,23 +98,4 @@ fn redirect_stderr(stderr: &Path) -> nix::Result<()> {
     unistd::dup2(file_fd, libc::STDERR_FILENO)?;
     unistd::close(file_fd)?;
     Ok(())
-}
-
-fn execvp(bin: &str, args: &[String]) -> Result<Never> {
-    let bin = CString::new(bin)?;
-
-    let mut c_args = Vec::new();
-    let mut argv: Vec<*const libc::c_char> = Vec::with_capacity(args.len() + 2);
-
-    argv.push(bin.as_ptr());
-    for a in args {
-        let c = CString::new(a.as_str())?;
-        argv.push(c.as_ptr());
-        c_args.push(c);
-    }
-    argv.push(ptr::null());
-
-    unsafe { libc::execvp(bin.as_ptr(), argv.as_ptr()) };
-
-    Err(io::Error::last_os_error()).context("failed to execvp")
 }

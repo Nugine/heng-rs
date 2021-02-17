@@ -2,7 +2,7 @@
 
 # create a user and a group for heng
 # name:     heng
-# uid:      1024
+# uid:      1025
 # shell:    bash
 # home:     /home/heng
 
