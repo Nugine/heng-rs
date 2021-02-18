@@ -1,6 +1,5 @@
 [server]
-host = "localhost"
-port = 8080
+address = "127.0.0.1:8080"
 
 [redis]
 url = "redis://localhost:6379/0"

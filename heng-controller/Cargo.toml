@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Nugine <nugine@foxmail.com>"]
 edition = "2018"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.heng-protocol]
+path = "../heng-protocol"
+
 [dependencies]
 anyhow = "1.0.38"
 serde = { version = "1.0.123", features = ["derive"] }
@@ -17,23 +22,8 @@ chrono = { version = "0.4.19", features = ["serde"] }
 serde_json = { version = "1.0.62", features = ["raw_value"] }
 dashmap = "4.0.2"
 tokio = { version = "1.2.0", features = ["full"] }
-
-# ----------------------------------------------
-
-# FIXME: waiting for actix-web v4
-
-actix-web = { git = "https://github.com/actix/actix-web.git" }
-actix-rt = { git = "https://github.com/actix/actix-net.git" }
-actix-service = { git = "https://github.com/actix/actix-net.git" }
-actix-http = { git = "https://github.com/actix/actix-web.git" }
-actix-web-actors = { git = "https://github.com/actix/actix-web.git" }
-actix = { git = "https://github.com/actix/actix.git" }
 futures = "0.3.12"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies.heng-protocol]
-path = "../heng-protocol"
+warp = "0.3.0"
 
 # ----------------------------------------------
 

@@ -5,13 +5,3 @@ members = [
     "heng-protocol",
     "heng-sandbox",
 ]
-
-# FIXME: remove the patch after actix-web has moved to v4
-
-[patch.crates-io]
-actix-web = { git = "https://github.com/actix/actix-web.git" }
-actix-rt = { git = "https://github.com/actix/actix-net.git" }
-actix-service = { git = "https://github.com/actix/actix-net.git" }
-actix-http = { git = "https://github.com/actix/actix-web.git" }
-actix-web-actors = { git = "https://github.com/actix/actix-web.git" }
-actix = { git = "https://github.com/actix/actix.git" }

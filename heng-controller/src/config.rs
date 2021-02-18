@@ -2,7 +2,6 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
-use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -21,9 +20,7 @@ pub struct Config {
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Server {
     #[validate(length(min = 1))]
-    pub host: String,
-
-    pub port: u16,
+    pub address: String,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -41,18 +38,11 @@ pub struct Judger {
     pub token_ttl: u64, // ms
 }
 
-static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();
-
 impl Config {
-    pub fn init_from_file(path: impl AsRef<Path>) -> Result<&'static Config> {
+    pub fn new_from_file(path: impl AsRef<Path>) -> Result<Config> {
         let content = fs::read_to_string(&path)?;
         let config: Config = toml::from_str(&content)?;
         config.validate()?;
-        let _ = GLOBAL_CONFIG.set(config);
-        Ok(GLOBAL_CONFIG.get().unwrap())
-    }
-
-    pub fn global() -> &'static Config {
-        GLOBAL_CONFIG.get().unwrap()
+        Ok(config)
     }
 }

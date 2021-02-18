@@ -1,10 +1,33 @@
-use heng_controller::config::Config;
+use heng_controller::{App, Config};
 
 use std::env;
 
 use anyhow::Result;
 use dotenv::dotenv;
 use tracing::info;
+
+const CONFIG_PATH: &str = "heng-controller.toml";
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    dotenv().ok();
+    setup_tracing();
+
+    let config = load_config()?;
+    let app = App::new(config).await?;
+    app.run().await
+}
+
+#[tracing::instrument(err)]
+fn load_config() -> Result<Config> {
+    let path = env::current_dir()?.join(CONFIG_PATH);
+
+    info!("loading config from {}", path.display());
+    let config = Config::new_from_file(&path)?;
+    info!("config is loaded:\n{:#?}", config);
+
+    Ok(config)
+}
 
 fn setup_tracing() {
     use tracing_error::ErrorSubscriber;
@@ -21,26 +44,4 @@ fn setup_tracing() {
         .finish()
         .with(ErrorSubscriber::default())
         .init();
-}
-
-const CONFIG_PATH: &str = "heng-controller.toml";
-
-#[tracing::instrument(err)]
-fn load_config() -> Result<()> {
-    let path = env::current_dir()?.join(CONFIG_PATH);
-
-    info!("loading config from {}", path.display());
-    let config = Config::init_from_file(&path)?;
-    info!("config is loaded:\n{:#?}", config);
-
-    Ok(())
-}
-
-#[actix_web::main]
-async fn main() -> Result<()> {
-    dotenv().ok();
-    setup_tracing();
-
-    load_config()?;
-    heng_controller::run().await
 }

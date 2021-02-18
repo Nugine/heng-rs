@@ -1,43 +1,42 @@
-#![deny(clippy::all)]
+#[macro_use]
+mod utils;
+mod config;
+mod redis;
 
-pub mod config;
-pub mod judger;
-pub mod redis;
-pub mod utils;
+pub use self::config::Config;
+use self::redis::Redis;
 
-// -------------------------------------------------------------------------
+use std::net::SocketAddr;
+use std::sync::Arc;
 
-use crate::config::Config;
-
-use actix_web::{web, App, HttpServer};
 use anyhow::Result;
-use tracing::info;
+use warp::reply::{self, Response};
+use warp::{Filter, Rejection, Reply};
 
-const GLOBAL_PREFIX: &str = "/v1";
+pub struct App {
+    config: Config,
+    redis: Redis,
+}
 
-pub async fn run() -> Result<()> {
-    let config = Config::global();
+impl App {
+    pub async fn new(config: Config) -> Result<Arc<Self>> {
+        let redis = Redis::new(&config)?;
+        let app = Self { config, redis };
+        Ok(Arc::new(app))
+    }
 
-    let redis = self::redis::register()?;
-    let judger = self::judger::register()?;
+    fn routes(self: Arc<Self>) -> impl_filter!() {
+        warp::any()
+            .map(move || self.clone())
+            .and(warp::path!("v1" / "test"))
+            .and(warp::get())
+            .map(|app: Arc<Self>| reply::json(&app.config).into_response())
+    }
 
-    // build server
-    let server: _ = HttpServer::new(move || {
-        App::new().service(
-            web::scope(GLOBAL_PREFIX)
-                .configure(redis.clone())
-                .configure(judger.clone()),
-        )
-    });
-
-    // bind address
-    let host = &config.server.host;
-    let port = config.server.port;
-    let server: _ = server.bind((host.as_str(), port))?;
-    info!("server is listening {}:{}", host, port);
-
-    // run server
-    server.run().await?;
-
-    Ok(())
+    pub async fn run(self: Arc<Self>) -> Result<()> {
+        let addr = self.config.server.address.parse::<SocketAddr>()?;
+        let server = warp::serve(Self::routes(self));
+        server.bind(addr).await;
+        Ok(())
+    }
 }
