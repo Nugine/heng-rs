@@ -12,16 +12,13 @@ use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
 use heng_protocol::internal::ws_json::Message as WsMessage;
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{format_err, Result};
-use chrono::Local;
 use futures::stream::StreamExt;
 use futures::SinkExt;
 use redis::RedisModule;
 use tokio::sync::mpsc;
 use tokio::task;
-use tokio::time;
 use tokio_tungstenite as ws;
 use tokio_tungstenite::tungstenite;
 use tracing::{error, info, warn};
@@ -29,28 +26,7 @@ use tracing::{error, info, warn};
 type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
 
 pub async fn run() -> Result<()> {
-    let mut retry: u64 = 0;
-
-    loop {
-        match main_loop().await {
-            Ok(()) => return Ok(()),
-            Err(err) => {
-                error!(?err, "main loop error");
-
-                retry += 1;
-
-                let delay = if retry <= 16 { 1_u64 << retry } else { 60_000 };
-
-                info!(
-                    ?retry,
-                    "sleep for {} ms, try to reconnect at {}",
-                    delay,
-                    Local::now() + chrono::Duration::milliseconds(delay as i64)
-                );
-                time::sleep(Duration::from_millis(delay)).await;
-            }
-        }
-    }
+    main_loop().await
 }
 
 #[tracing::instrument(err)]

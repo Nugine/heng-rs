@@ -17,7 +17,7 @@ pub struct PartialConnectionSettings {
     pub status_report_interval: Option<u64>, // milliseconds
 }
 
-#[derive(Debug, Serialize, Deserialize, thiserror::Error)]
+#[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
 pub struct ErrorInfo {
     pub code: u32,
     pub message: Option<String>,

@@ -1,10 +1,13 @@
-#[macro_use]
-mod utils;
 mod config;
+mod error_code;
+mod errors;
+mod judger;
 mod redis;
+mod routes;
 
 pub use self::config::Config;
-use self::redis::Redis;
+use self::judger::JudgerModule;
+use self::redis::RedisModule;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -15,27 +18,25 @@ use warp::{Filter, Rejection, Reply};
 
 pub struct App {
     config: Config,
-    redis: Redis,
+    redis: RedisModule,
+    judger: Arc<JudgerModule>,
 }
 
 impl App {
     pub async fn new(config: Config) -> Result<Arc<Self>> {
-        let redis = Redis::new(&config)?;
-        let app = Self { config, redis };
+        let redis = RedisModule::new(&config)?;
+        let judger = JudgerModule::new(&config)?;
+        let app = Self {
+            config,
+            redis,
+            judger,
+        };
         Ok(Arc::new(app))
-    }
-
-    fn routes(self: Arc<Self>) -> impl_filter!() {
-        warp::any()
-            .map(move || self.clone())
-            .and(warp::path!("v1" / "test"))
-            .and(warp::get())
-            .map(|app: Arc<Self>| reply::json(&app.config).into_response())
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
         let addr = self.config.server.address.parse::<SocketAddr>()?;
-        let server = warp::serve(Self::routes(self));
+        let server = warp::serve(routes::routes(self));
         server.bind(addr).await;
         Ok(())
     }

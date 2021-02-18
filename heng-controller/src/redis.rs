@@ -8,11 +8,11 @@ use mobc_redis::RedisConnectionManager;
 pub type Connection = mobc::Connection<RedisConnectionManager>;
 pub use redis::aio::ConnectionLike;
 
-pub struct Redis {
+pub struct RedisModule {
     pool: mobc::Pool<RedisConnectionManager>,
 }
 
-impl Redis {
+impl RedisModule {
     pub fn new(config: &Config) -> Result<Self> {
         let redis_url = config.redis.url.as_str();
         let max_open = config.redis.max_open;
