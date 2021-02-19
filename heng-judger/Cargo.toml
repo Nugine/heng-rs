@@ -30,16 +30,8 @@ dashmap = "4.0.2"
 
 # FIXME: waiting for tracing v0.2
 
-[dependencies.tracing]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
-
-[dependencies.tracing-subscriber]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
-
-[dependencies.tracing-error]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "881091a1dd5d3126faeabbca9e3779f1d16c3cce"
+tracing = "*"
+tracing-subscriber = "*"
+tracing-error = "*"
 
 # ----------------------------------------------
