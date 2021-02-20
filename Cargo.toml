@@ -5,15 +5,3 @@ members = [
     "heng-protocol",
     "heng-sandbox",
 ]
-
-[patch.crates-io.tracing]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "002f0bbf47ba9742baec6267d889a50801b4beed"
-
-[patch.crates-io.tracing-subscriber]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "002f0bbf47ba9742baec6267d889a50801b4beed"
-
-[patch.crates-io.tracing-error]
-git = "https://github.com/tokio-rs/tracing.git"
-rev = "002f0bbf47ba9742baec6267d889a50801b4beed"

@@ -1,7 +1,8 @@
-[client]
+[judger]
 remote_domain = "localhost:8080"
 access_key = "example-ak"
 secret_key = "example-sk"
+rpc_timeout = 10000
 
 [redis]
 url = "redis://localhost:6379/1"

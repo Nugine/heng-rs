@@ -9,24 +9,26 @@ use crate::config::Config;
 use crate::judger::Judger;
 
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
-use heng_protocol::internal::ws_json::Message as WsMessage;
-
-use std::sync::Arc;
 
 use anyhow::{format_err, Result};
-use futures::stream::StreamExt;
-use futures::SinkExt;
 use redis::RedisModule;
-use tokio::sync::mpsc;
-use tokio::task;
 use tokio_tungstenite as ws;
-use tokio_tungstenite::tungstenite;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
 
 pub async fn run() -> Result<()> {
-    main_loop().await
+    info!("initializing redis module");
+    let redis_module = RedisModule::new()?;
+    info!("redis module is initialized");
+
+    let config = Config::global();
+    let remote_domain = config.judger.remote_domain.as_str();
+
+    let token = get_token(remote_domain).await?;
+    let ws = connect_ws(remote_domain, &token).await?;
+
+    Judger::run(redis_module, ws).await
 }
 
 #[tracing::instrument(err)]
@@ -61,65 +63,4 @@ async fn connect_ws(remote_domain: &str, token: &str) -> Result<WsStream> {
     let (ws_stream, _) = ws::connect_async(ws_url).await?;
     info!("connected");
     Ok(ws_stream)
-}
-
-async fn main_loop() -> Result<()> {
-    info!("initializing redis module");
-    let redis = RedisModule::new()?;
-    info!("redis module is initialized");
-
-    let config = Config::global();
-    let remote_domain = config.client.remote_domain.as_str();
-
-    let token = get_token(remote_domain).await?;
-    let ws_stream = connect_ws(remote_domain, &token).await?;
-
-    let (mut ws_tx, mut ws_rx) = ws_stream.split();
-
-    let (msg_tx, mut msg_rx) = mpsc::channel::<WsMessage>(4096);
-
-    task::spawn(async move {
-        while let Some(res_msg) = msg_rx.recv().await {
-            let msg = serde_json::to_string(&res_msg).unwrap();
-            ws_tx.send(tungstenite::Message::Text(msg)).await?;
-        }
-        <Result<()>>::Ok(())
-    });
-
-    let judger = Arc::new(Judger::new(msg_tx.clone(), redis));
-
-    {
-        let judger = Arc::clone(&judger);
-        task::spawn(async move { judger.report_status_loop().await });
-    }
-
-    while let Some(frame) = ws_rx.next().await {
-        use tungstenite::Message::*;
-
-        let frame = frame?;
-
-        match frame {
-            Close(reason) => {
-                warn!(?reason, "ws session closed");
-                break;
-            }
-            Text(text) => {
-                let msg = match serde_json::from_str(&text) {
-                    Ok(m) => m,
-                    Err(err) => {
-                        error!(%err, "internal protocol: message format error:\n{:?}\n",text);
-                        return Err(err.into());
-                    }
-                };
-                let judger = Arc::clone(&judger);
-                task::spawn(async move { judger.handle_controller_message(msg).await });
-            }
-            _ => {
-                warn!("drop ws message");
-                drop(frame);
-            }
-        }
-    }
-
-    Ok(())
 }

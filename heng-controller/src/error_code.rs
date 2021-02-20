@@ -6,4 +6,5 @@ pub enum ErrorCode {
     NotSupported = 1001,
     InvalidRequest = 1002,
     NotRegistered = 1003,
+    AlreadyConnected = 1004,
 }

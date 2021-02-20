@@ -13,29 +13,26 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
-use warp::reply::{self, Response};
-use warp::{Filter, Rejection, Reply};
 
 pub struct App {
-    config: Config,
-    redis: RedisModule,
-    judger: Arc<JudgerModule>,
+    redis_module: RedisModule,
+    judger_module: Arc<JudgerModule>,
 }
 
 impl App {
-    pub async fn new(config: Config) -> Result<Arc<Self>> {
-        let redis = RedisModule::new(&config)?;
-        let judger = JudgerModule::new(&config)?;
+    pub async fn new() -> Result<Arc<Self>> {
+        let redis_module = RedisModule::new()?;
+        let judger_module = JudgerModule::new()?;
         let app = Self {
-            config,
-            redis,
-            judger,
+            redis_module,
+            judger_module,
         };
         Ok(Arc::new(app))
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
-        let addr = self.config.server.address.parse::<SocketAddr>()?;
+        let config = Config::global();
+        let addr = config.server.address.parse::<SocketAddr>()?;
         let server = warp::serve(routes::routes(self));
         server.bind(addr).await;
         Ok(())

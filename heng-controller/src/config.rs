@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::Result;
+use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -36,13 +37,23 @@ pub struct Redis {
 pub struct Judger {
     #[validate(range(max = 60000))]
     pub token_ttl: u64, // ms
+
+    #[validate(range(min = 1000, max = 60000))]
+    pub rpc_timeout: u64, // ms
 }
 
+static GLOBAL_CONFIG: OnceCell<Config> = OnceCell::new();
+
 impl Config {
-    pub fn new_from_file(path: impl AsRef<Path>) -> Result<Config> {
+    pub fn init_from_file(path: impl AsRef<Path>) -> Result<&'static Config> {
         let content = fs::read_to_string(&path)?;
         let config: Config = toml::from_str(&content)?;
         config.validate()?;
-        Ok(config)
+        GLOBAL_CONFIG.set(config).unwrap();
+        Ok(GLOBAL_CONFIG.get().unwrap())
+    }
+
+    pub fn global() -> &'static Config {
+        GLOBAL_CONFIG.get().unwrap()
     }
 }

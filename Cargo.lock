@@ -480,7 +480,7 @@ dependencies = [
  "slab",
  "tokio",
  "tokio-util",
- "tracing 0.1.24",
+ "tracing",
  "tracing-futures",
 ]
 
@@ -530,17 +530,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "dashmap",
  "dotenv",
  "futures",
  "heng-protocol",
  "mobc-redis",
+ "once_cell",
  "serde",
  "serde_json",
  "tokio",
  "tokio-stream",
  "toml",
- "tracing 0.1.24",
+ "tracing",
  "tracing-error",
  "tracing-subscriber",
  "uuid",
@@ -564,9 +564,10 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tokio-stream",
  "tokio-tungstenite",
  "toml",
- "tracing 0.1.24",
+ "tracing",
  "tracing-error",
  "tracing-subscriber",
  "url",
@@ -671,7 +672,7 @@ dependencies = [
  "socket2",
  "tokio",
  "tower-service",
- "tracing 0.1.24",
+ "tracing",
  "want",
 ]
 
@@ -1736,17 +1737,7 @@ dependencies = [
  "log",
  "pin-project-lite",
  "tracing-attributes",
- "tracing-core 0.1.17",
-]
-
-[[package]]
-name = "tracing"
-version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
-dependencies = [
- "cfg-if",
- "pin-project-lite",
- "tracing-core 0.2.0",
+ "tracing-core",
 ]
 
 [[package]]
@@ -1770,19 +1761,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-core"
-version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
-dependencies = [
- "lazy_static",
-]
-
-[[package]]
 name = "tracing-error"
-version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4d7c0b83d4a500748fa5879461652b361edf5c9d51ede2a2ac03875ca185e24"
 dependencies = [
- "tracing 0.2.0",
+ "tracing",
  "tracing-subscriber",
 ]
 
@@ -1793,32 +1777,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
  "pin-project",
- "tracing 0.1.24",
+ "tracing",
 ]
 
 [[package]]
 name = "tracing-log"
-version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6923477a48e41c1951f1999ef8bb5a3023eb723ceadafe78ffb65dc366761e3"
 dependencies = [
  "lazy_static",
  "log",
- "tracing-core 0.2.0",
+ "tracing-core",
 ]
 
 [[package]]
 name = "tracing-serde"
-version = "0.2.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb65ea441fbb84f9f6748fd496cf7f63ec9af5bca94dd86456978d055e8eb28b"
 dependencies = [
  "serde",
- "tracing-core 0.2.0",
+ "tracing-core",
 ]
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.0"
-source = "git+https://github.com/tokio-rs/tracing.git?rev=002f0bbf47ba9742baec6267d889a50801b4beed#002f0bbf47ba9742baec6267d889a50801b4beed"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ab8966ac3ca27126141f7999361cc97dd6fb4b71da04c02044fa9045d98bb96"
 dependencies = [
  "ansi_term 0.12.1",
  "chrono",
@@ -1830,8 +1817,8 @@ dependencies = [
  "sharded-slab",
  "smallvec",
  "thread_local",
- "tracing 0.2.0",
- "tracing-core 0.2.0",
+ "tracing",
+ "tracing-core",
  "tracing-log",
  "tracing-serde",
 ]
@@ -2041,7 +2028,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tower-service",
- "tracing 0.1.24",
+ "tracing",
  "tracing-futures",
 ]
 

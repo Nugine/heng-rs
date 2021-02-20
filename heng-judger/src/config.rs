@@ -9,14 +9,14 @@ use validator::Validate;
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Config {
     #[validate]
-    pub client: Client,
+    pub judger: Judger,
 
     #[validate]
     pub redis: Redis,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct Client {
+pub struct Judger {
     #[validate(length(min = 1))]
     pub remote_domain: String,
 
@@ -25,6 +25,9 @@ pub struct Client {
 
     #[validate(length(min = 1))]
     pub secret_key: String,
+
+    #[validate(range(min = 1000, max = 60000))]
+    pub rpc_timeout: u64,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]

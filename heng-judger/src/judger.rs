@@ -1,34 +1,49 @@
+use crate::config::Config;
 use crate::redis::RedisModule;
-use crate::utils::ResultExt;
 
+use futures::stream::SplitStream;
+use futures::StreamExt;
 use heng_protocol::internal::ws_json::{
-    CreateJudgeArgs, FinishJudgeArgs, Message as WsMessage, ReportStatusArgs, Request, Response,
-    UpdateJudgeArgs,
+    CreateJudgeArgs, FinishJudgeArgs, ReportStatusArgs, UpdateJudgeArgs,
 };
-use heng_protocol::internal::{
-    ConnectionSettings, ErrorInfo, JudgeState, PartialConnectionSettings,
+use heng_protocol::internal::ws_json::{
+    Message as RpcMessage, Request as RpcRequest, Response as RpcResponse,
 };
+use heng_protocol::internal::{ConnectionSettings, ErrorInfo, PartialConnectionSettings};
+use tokio_stream::wrappers::ReceiverStream;
+use ws::tungstenite::protocol::frame::coding::CloseCode;
+use ws::tungstenite::protocol::CloseFrame;
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use chrono::Utc;
-use dashmap::DashMap;
+use futures::TryFutureExt;
 use serde::Serialize;
 use serde_json::value::RawValue;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::{task, time};
-use tracing::{debug, error, warn};
+use tokio_tungstenite as ws;
+use tokio_tungstenite::tungstenite;
+use tracing::{debug, error, info, warn};
+
+type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
+type WsMessage = tungstenite::Message;
 
 pub struct Judger {
-    sender: mpsc::Sender<WsMessage>,
-    seq: AtomicU32,
-    callbacks: DashMap<u32, oneshot::Sender<Response>>,
-    redis: RedisModule,
+    redis_module: RedisModule,
     settings: Settings,
     counter: Mutex<Counter>,
+    session: WsSession,
+}
+
+struct WsSession {
+    sender: mpsc::Sender<WsMessage>,
+    seq: AtomicU32,
+    callbacks: Mutex<HashMap<u32, oneshot::Sender<RpcResponse>>>,
 }
 
 struct Settings {
@@ -43,12 +58,25 @@ struct Counter {
 }
 
 impl Judger {
-    pub fn new(sender: mpsc::Sender<WsMessage>, redis: RedisModule) -> Self {
-        Self {
-            sender,
-            seq: AtomicU32::new(0),
-            callbacks: DashMap::new(),
-            redis,
+    pub async fn run(redis_module: RedisModule, ws: WsStream) -> Result<()> {
+        let (ws_sink, ws_stream) = ws.split();
+
+        let (tx, rx) = mpsc::channel::<WsMessage>(4096);
+
+        task::spawn(
+            ReceiverStream::new(rx)
+                .map(Ok)
+                .forward(ws_sink)
+                .inspect_err(|err| error!(%err, "ws forward error")),
+        );
+
+        let judger = Arc::new(Self {
+            session: WsSession {
+                sender: tx,
+                seq: AtomicU32::new(0),
+                callbacks: Mutex::new(HashMap::new()),
+            },
+            redis_module,
             settings: Settings {
                 status_report_interval: AtomicU64::new(1000),
             },
@@ -57,37 +85,116 @@ impl Judger {
                 judging: 0,
                 finished: 0,
             }),
+        });
+
+        {
+            let judger = judger.clone();
+            task::spawn(async move { judger.report_status_loop().await });
+        }
+
+        judger.main_loop(ws_stream).await
+    }
+
+    async fn main_loop(self: Arc<Self>, mut ws_stream: SplitStream<WsStream>) -> Result<()> {
+        info!("starting main loop");
+        while let Some(frame) = ws_stream.next().await {
+            use tungstenite::Message::*;
+
+            let frame = frame?;
+
+            match frame {
+                Close(reason) => {
+                    warn!(?reason, "ws session closed");
+                    return Ok(());
+                }
+                Text(text) => {
+                    let rpc_msg: RpcMessage = match serde_json::from_str(&text) {
+                        Ok(m) => m,
+                        Err(err) => {
+                            error!(%err, "internal protocol: message format error:\n{:?}\n",text);
+                            let close_frame = CloseFrame {
+                                code: CloseCode::Invalid,
+                                reason: "internal protocol message format error".into(),
+                            };
+                            let _ = self.session.sender.send(Close(Some(close_frame))).await;
+                            return Err(err.into());
+                        }
+                    };
+                    match rpc_msg {
+                        RpcMessage::Request { seq, body, .. } => {
+                            let this = self.clone();
+                            task::spawn(async move {
+                                let response = this.clone().handle_rpc_request(body).await;
+                                let rpc_msg = RpcMessage::Response {
+                                    seq,
+                                    time: Utc::now(),
+                                    body: response,
+                                };
+                                let ws_msg =
+                                    WsMessage::text(serde_json::to_string(&rpc_msg).unwrap());
+                                let _ = this.session.sender.send(ws_msg).await;
+                            });
+                        }
+                        RpcMessage::Response { seq, body, .. } => {
+                            let this = self.clone();
+                            task::spawn(async move {
+                                let mut callbacks = this.session.callbacks.lock().await;
+                                match callbacks.remove(&seq) {
+                                    None => warn!(?seq, "no such callback"),
+                                    Some(cb) => match cb.send(body) {
+                                        Ok(()) => {}
+                                        Err(_) => warn!(?seq, "the callback is timeouted"),
+                                    },
+                                }
+                            });
+                        }
+                    }
+                }
+                _ => {
+                    warn!("drop ws message");
+                    drop(frame);
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn wsrpc(&self, req: RpcRequest) -> Result<RpcResponse> {
+        let session = &self.session;
+        let seq = session.seq.fetch_add(1, Relaxed).wrapping_add(1);
+        let (tx, rx) = oneshot::channel();
+        let rpc_msg = RpcMessage::Request {
+            seq,
+            time: Utc::now(),
+            body: req,
+        };
+        let ws_msg = WsMessage::text(serde_json::to_string(&rpc_msg).unwrap());
+
+        {
+            let mut callbacks = session.callbacks.lock().await;
+            callbacks.insert(seq, tx);
+            session.sender.send(ws_msg).await.unwrap();
+        }
+
+        let rpc_timeout = Config::global().judger.rpc_timeout;
+        match time::timeout(Duration::from_millis(rpc_timeout), rx).await {
+            Ok(res) => Ok(res.unwrap()),
+            Err(err) => {
+                let mut callbacks = session.callbacks.lock().await;
+                let _ = callbacks.remove(&seq);
+                return Err(anyhow::Error::new(err));
+            }
         }
     }
 
-    pub async fn wsrpc(&self, body: Request) -> Result<Response> {
-        let seq = self.seq.fetch_add(1, Relaxed).wrapping_add(1);
-
-        let ws_msg = WsMessage::Request {
-            seq,
-            time: Utc::now(),
-            body,
-        };
-
-        let (tx, rx) = oneshot::channel();
-        self.callbacks.insert(seq, tx);
-
-        self.sender.send(ws_msg).await.unwrap();
-
-        let res = rx
-            .await
-            .inspect_err(|err| error!(%err,"failed to receive a response"))?;
-
-        Ok(res)
-    }
-
-    pub async fn report_status_loop(&self) -> Result<()> {
+    async fn report_status_loop(&self) -> Result<()> {
         loop {
             let delay = self.settings.status_report_interval.load(Relaxed);
             time::sleep(Duration::from_millis(delay)).await;
 
             let result = self
-                .wsrpc(Request::ReportStatus(ReportStatusArgs {
+                .wsrpc(RpcRequest::ReportStatus(ReportStatusArgs {
                     collect_time: Utc::now(),
                     next_report_time: Utc::now() + chrono::Duration::milliseconds(delay as i64),
                     report: None, // FIXME
@@ -97,64 +204,47 @@ impl Judger {
             let cnt = self.count(|cnt| cnt.clone()).await;
 
             match result {
-                Ok(Response::Output(None)) => debug!(interval=?delay, count=?cnt, "report status"),
-                Ok(Response::Output(Some(value))) => warn!(?value, "unexpected response"),
-                Ok(Response::Error(err)) => warn!(%err, "report status"),
+                Ok(RpcResponse::Output(None)) => {
+                    debug!(interval=?delay, count=?cnt, "report status")
+                }
+                Ok(RpcResponse::Output(Some(value))) => warn!(?value, "unexpected response"),
+                Ok(RpcResponse::Error(err)) => warn!(%err, "report status"),
                 Err(_) => warn!("the request failed"),
             }
-        }
-    }
-
-    pub async fn handle_controller_message(self: Arc<Self>, msg: WsMessage) {
-        match msg {
-            WsMessage::Request {
-                seq,
-                time: _time,
-                body,
-            } => {
-                let res_body = match body {
-                    Request::CreateJudge(args) => {
-                        to_null_response(self.clone().create_judge(args).await)
-                    }
-                    Request::Control(args) => to_response(self.control(args).await),
-                    _ => {
-                        warn!(?body, "unexpected ws request from controller");
-                        drop(body);
-                        return;
-                    }
-                };
-
-                let res = WsMessage::Response {
-                    seq,
-                    time: Utc::now(),
-                    body: res_body,
-                };
-
-                if let Err(err) = self.sender.send(res).await {
-                    error!(%err,"ws send failed");
-                }
-            }
-            WsMessage::Response { seq, time, body } => match self.callbacks.remove(&seq) {
-                Some((_, cb)) => {
-                    if cb.send(body).is_err() {
-                        warn!(?seq, ?time, "the callback has been cancelled");
-                    }
-                }
-                None => {
-                    warn!(
-                        ?seq,
-                        ?time,
-                        "can not find a callback waiting for the response"
-                    );
-                    drop(body);
-                }
-            },
         }
     }
 
     async fn count<T>(&self, f: impl FnOnce(&mut Counter) -> T) -> T {
         let mut counter = self.counter.lock().await;
         f(&mut counter)
+    }
+
+    async fn handle_rpc_request(self: Arc<Self>, req: RpcRequest) -> RpcResponse {
+        match req {
+            RpcRequest::CreateJudge(args) => to_null_response(self.create_judge(args).await),
+            RpcRequest::Control(args) => to_response(self.control(args).await),
+            _ => RpcResponse::Error(ErrorInfo {
+                code: 1001,
+                message: None,
+            }),
+        }
+    }
+
+    async fn control(
+        &self,
+        settings: Option<PartialConnectionSettings>,
+    ) -> Result<ConnectionSettings> {
+        if let Some(settings) = settings {
+            if let Some(interval) = settings.status_report_interval {
+                self.settings
+                    .status_report_interval
+                    .store(interval, Relaxed);
+            }
+        }
+        let current_settings = ConnectionSettings {
+            status_report_interval: self.settings.status_report_interval.load(Relaxed),
+        };
+        Ok(current_settings)
     }
 
     async fn create_judge(self: Arc<Self>, judge: CreateJudgeArgs) -> Result<()> {
@@ -209,7 +299,7 @@ impl Judger {
     }
 
     async fn update_judge(&self, update: UpdateJudgeArgs) -> Result<()> {
-        let res = self.wsrpc(Request::UpdateJudges(vec![update])).await?;
+        let res = self.wsrpc(RpcRequest::UpdateJudges(vec![update])).await?;
         let output = to_anyhow(res)?;
         if output.is_some() {
             warn!(?output, "unexpected output")
@@ -218,40 +308,23 @@ impl Judger {
     }
 
     async fn finish_judge(&self, finish: FinishJudgeArgs) -> Result<()> {
-        let res = self.wsrpc(Request::FinishJudges(vec![finish])).await?;
+        let res = self.wsrpc(RpcRequest::FinishJudges(vec![finish])).await?;
         let output = to_anyhow(res)?;
         if output.is_some() {
             warn!(?output, "unexpected output")
         }
         Ok(())
     }
-
-    async fn control(
-        &self,
-        settings: Option<PartialConnectionSettings>,
-    ) -> Result<ConnectionSettings> {
-        if let Some(settings) = settings {
-            if let Some(interval) = settings.status_report_interval {
-                self.settings
-                    .status_report_interval
-                    .store(interval, Relaxed);
-            }
-        }
-        let current_settings = ConnectionSettings {
-            status_report_interval: self.settings.status_report_interval.load(Relaxed),
-        };
-        Ok(current_settings)
-    }
 }
 
-fn to_response<T: Serialize>(result: Result<T>) -> Response {
+fn to_response<T: Serialize>(result: Result<T>) -> RpcResponse {
     match result {
         Ok(value) => {
             let raw_value = RawValue::from_string(serde_json::to_string(&value).unwrap()).unwrap();
-            Response::Output(Some(raw_value))
+            RpcResponse::Output(Some(raw_value))
         }
         Err(err) => {
-            Response::Error(ErrorInfo {
+            RpcResponse::Error(ErrorInfo {
                 code: 1000, // unknown
                 message: Some(err.to_string()),
             })
@@ -259,11 +332,11 @@ fn to_response<T: Serialize>(result: Result<T>) -> Response {
     }
 }
 
-fn to_null_response(result: Result<()>) -> Response {
+fn to_null_response(result: Result<()>) -> RpcResponse {
     match result {
-        Ok(()) => Response::Output(None),
+        Ok(()) => RpcResponse::Output(None),
         Err(err) => {
-            Response::Error(ErrorInfo {
+            RpcResponse::Error(ErrorInfo {
                 code: 1000, // unknown
                 message: Some(err.to_string()),
             })
@@ -271,9 +344,9 @@ fn to_null_response(result: Result<()>) -> Response {
     }
 }
 
-fn to_anyhow(response: Response) -> Result<Option<Box<RawValue>>> {
+fn to_anyhow(response: RpcResponse) -> Result<Option<Box<RawValue>>> {
     match response {
-        Response::Output(output) => Ok(output),
-        Response::Error(err) => Err(anyhow::Error::from(err)),
+        RpcResponse::Output(output) => Ok(output),
+        RpcResponse::Error(err) => Err(anyhow::Error::from(err)),
     }
 }

@@ -65,7 +65,7 @@ async fn acquire_token(app: Arc<App>, body: AcquireTokenRequest) -> Result<Respo
         ));
     }
 
-    let judger = app.judger.clone();
+    let judger = app.judger_module.clone();
     let info = JudgerInfo {
         max_task_count: body.max_task_count,
         name: body.name,
@@ -75,7 +75,9 @@ async fn acquire_token(app: Arc<App>, body: AcquireTokenRequest) -> Result<Respo
 
     let ws_id = judger.register_judger(info).await.map_err(reject_anyhow)?;
 
-    let output = AcquireTokenOutput { token: ws_id };
+    let output = AcquireTokenOutput {
+        token: ws_id.to_string(),
+    };
     Ok(reply::json(&output).into_response())
 }
 
@@ -87,15 +89,24 @@ struct WsQuery {
 /// GET /v1/judgers/websocket?token={}
 /// WEBSOCKET
 async fn websocket(app: Arc<App>, query: WsQuery, ws: ws::Ws) -> Result<impl Reply, Rejection> {
-    if !app.judger.is_registered(&query.token) {
+    let judger = match app.judger_module.find_judger(&query.token).await {
+        Some(j) => j,
+        None => {
+            return Err(reject_error(
+                StatusCode::FORBIDDEN,
+                ErrorCode::NotRegistered,
+                None,
+            ))
+        }
+    };
+
+    if !judger.is_registered().await {
         return Err(reject_error(
-            StatusCode::FORBIDDEN,
-            ErrorCode::NotRegistered,
+            StatusCode::BAD_REQUEST,
+            ErrorCode::AlreadyConnected,
             None,
         ));
     }
 
-    let judger = app.judger.clone();
-    let ws_id = query.token;
-    Ok(ws.on_upgrade(move |ws| judger.start_session(ws_id, ws)))
+    Ok(ws.on_upgrade(move |ws| judger.start_session(ws)))
 }
