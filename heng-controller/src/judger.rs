@@ -235,7 +235,9 @@ impl Judger {
         {
             let mut callbacks = session.callbacks.lock().await;
             callbacks.insert(seq, tx);
-            session.sender.send(ws_msg).await.unwrap(); // FIXME: what if disconnected?
+            if session.sender.send(ws_msg).await.is_err() {
+                return Err(format_err!("judger has disconnected"));
+            }
         }
 
         let rpc_timeout = Config::global().judger.rpc_timeout;

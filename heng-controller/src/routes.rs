@@ -1,8 +1,8 @@
-use crate::error_code::ErrorCode;
 use crate::errors::{self, reject_anyhow, reject_error};
 use crate::judger::JudgerInfo;
 use crate::App;
 
+use heng_protocol::error::ErrorCode;
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
 
 use std::convert::Infallible;

@@ -1,18 +1,14 @@
 use crate::config::Config;
 use crate::redis::RedisModule;
 
-use futures::stream::SplitStream;
-use futures::StreamExt;
+use heng_protocol::error::ErrorCode;
+use heng_protocol::internal::ws_json::Message as RpcMessage;
+use heng_protocol::internal::ws_json::{Request as RpcRequest, Response as RpcResponse};
+use heng_protocol::internal::{ConnectionSettings, ErrorInfo, PartialConnectionSettings};
+
 use heng_protocol::internal::ws_json::{
     CreateJudgeArgs, FinishJudgeArgs, ReportStatusArgs, UpdateJudgeArgs,
 };
-use heng_protocol::internal::ws_json::{
-    Message as RpcMessage, Request as RpcRequest, Response as RpcResponse,
-};
-use heng_protocol::internal::{ConnectionSettings, ErrorInfo, PartialConnectionSettings};
-use tokio_stream::wrappers::ReceiverStream;
-use ws::tungstenite::protocol::frame::coding::CloseCode;
-use ws::tungstenite::protocol::CloseFrame;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
@@ -21,14 +17,19 @@ use std::time::Duration;
 
 use anyhow::Result;
 use chrono::Utc;
+use futures::stream::SplitStream;
+use futures::StreamExt;
 use futures::TryFutureExt;
 use serde::Serialize;
 use serde_json::value::RawValue;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::{task, time};
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite as ws;
 use tokio_tungstenite::tungstenite;
 use tracing::{debug, error, info, warn};
+use ws::tungstenite::protocol::frame::coding::CloseCode;
+use ws::tungstenite::protocol::CloseFrame;
 
 type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
 type WsMessage = tungstenite::Message;
@@ -224,7 +225,7 @@ impl Judger {
             RpcRequest::CreateJudge(args) => to_null_response(self.create_judge(args).await),
             RpcRequest::Control(args) => to_response(self.control(args).await),
             _ => RpcResponse::Error(ErrorInfo {
-                code: 1001,
+                code: ErrorCode::NotSupported as u32,
                 message: None,
             }),
         }
@@ -323,24 +324,20 @@ fn to_response<T: Serialize>(result: Result<T>) -> RpcResponse {
             let raw_value = RawValue::from_string(serde_json::to_string(&value).unwrap()).unwrap();
             RpcResponse::Output(Some(raw_value))
         }
-        Err(err) => {
-            RpcResponse::Error(ErrorInfo {
-                code: 1000, // unknown
-                message: Some(err.to_string()),
-            })
-        }
+        Err(err) => RpcResponse::Error(ErrorInfo {
+            code: ErrorCode::UnknownError as u32,
+            message: Some(err.to_string()),
+        }),
     }
 }
 
 fn to_null_response(result: Result<()>) -> RpcResponse {
     match result {
         Ok(()) => RpcResponse::Output(None),
-        Err(err) => {
-            RpcResponse::Error(ErrorInfo {
-                code: 1000, // unknown
-                message: Some(err.to_string()),
-            })
-        }
+        Err(err) => RpcResponse::Error(ErrorInfo {
+            code: ErrorCode::UnknownError as u32,
+            message: Some(err.to_string()),
+        }),
     }
 }
 

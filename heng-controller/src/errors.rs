@@ -1,9 +1,9 @@
+use heng_protocol::error::ErrorCode;
 use heng_protocol::internal::ErrorInfo;
+
 use warp::hyper::StatusCode;
 use warp::reject::Reject;
 use warp::{reply, Rejection, Reply};
-
-use crate::error_code::ErrorCode;
 
 #[derive(Debug)]
 struct Anyhow(anyhow::Error);

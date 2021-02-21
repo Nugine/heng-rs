@@ -1,5 +1,4 @@
 mod config;
-mod error_code;
 mod errors;
 mod judger;
 mod redis;

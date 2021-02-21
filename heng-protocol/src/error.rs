@@ -1,5 +1,3 @@
-// FIXME: it should be defined in `heng-protocol`
-
 #[repr(u32)]
 pub enum ErrorCode {
     UnknownError = 1000,
