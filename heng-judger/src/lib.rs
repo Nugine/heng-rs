@@ -33,7 +33,7 @@ pub async fn run() -> Result<()> {
 
 #[tracing::instrument(err)]
 async fn get_token(remote_domain: &str) -> Result<String> {
-    let token_url = format!("http://{}/v1/judger/token", remote_domain);
+    let token_url = format!("http://{}/v1/judgers/token", remote_domain);
 
     // TODO: AK and SK
 
@@ -50,15 +50,19 @@ async fn get_token(remote_domain: &str) -> Result<String> {
         let output = res.json::<AcquireTokenOutput>().await?;
         Ok(output.token)
     } else {
+        let status = res.status();
         let text = res.text().await.unwrap();
-        error!(?text, "failed to acquire token");
+        error!(?status, ?text, "failed to acquire token");
         Err(format_err!("failed to acquire token"))
     }
 }
 
 #[tracing::instrument(err)]
 async fn connect_ws(remote_domain: &str, token: &str) -> Result<WsStream> {
-    let ws_url = format!("ws://{}/v1/judger/websocket?token={}", remote_domain, token);
+    let ws_url = format!(
+        "ws://{}/v1/judgers/websocket?token={}",
+        remote_domain, token
+    );
     info!("connecting to {}", ws_url);
     let (ws_stream, _) = ws::connect_async(ws_url).await?;
     info!("connected");

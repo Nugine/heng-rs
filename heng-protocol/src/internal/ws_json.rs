@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
+use crate::common::JudgeResult;
+
 use super::{ErrorInfo, JudgeState, PartialConnectionSettings};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -61,5 +63,5 @@ pub struct UpdateJudgeArgs {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinishJudgeArgs {
     pub id: String,
-    pub result: Option<Box<RawValue>>, // FIXME: define type JudgeResult
+    pub result: JudgeResult,
 }

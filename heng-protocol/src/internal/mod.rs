@@ -1,3 +1,5 @@
+use crate::error::ErrorCode;
+
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
@@ -19,7 +21,7 @@ pub struct PartialConnectionSettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, thiserror::Error)]
 pub struct ErrorInfo {
-    pub code: u32,
+    pub code: ErrorCode,
     pub message: Option<String>,
 }
 

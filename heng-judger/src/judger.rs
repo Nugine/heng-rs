@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::redis::RedisModule;
 
+use heng_protocol::common::JudgeResult;
 use heng_protocol::error::ErrorCode;
 use heng_protocol::internal::ws_json::Message as RpcMessage;
 use heng_protocol::internal::ws_json::{Request as RpcRequest, Response as RpcResponse};
@@ -225,7 +226,7 @@ impl Judger {
             RpcRequest::CreateJudge(args) => to_null_response(self.create_judge(args).await),
             RpcRequest::Control(args) => to_response(self.control(args).await),
             _ => RpcResponse::Error(ErrorInfo {
-                code: ErrorCode::NotSupported as u32,
+                code: ErrorCode::NotSupported,
                 message: None,
             }),
         }
@@ -285,7 +286,10 @@ impl Judger {
 
             let finish = FinishJudgeArgs {
                 id: judge.id.clone(),
-                result: None, // TODO
+                result: JudgeResult {
+                    cases: Vec::new(),
+                    extra: None,
+                },
             };
 
             self.count(|cnt| {
@@ -325,7 +329,7 @@ fn to_response<T: Serialize>(result: Result<T>) -> RpcResponse {
             RpcResponse::Output(Some(raw_value))
         }
         Err(err) => RpcResponse::Error(ErrorInfo {
-            code: ErrorCode::UnknownError as u32,
+            code: ErrorCode::UnknownError,
             message: Some(err.to_string()),
         }),
     }
@@ -335,7 +339,7 @@ fn to_null_response(result: Result<()>) -> RpcResponse {
     match result {
         Ok(()) => RpcResponse::Output(None),
         Err(err) => RpcResponse::Error(ErrorInfo {
-            code: ErrorCode::UnknownError as u32,
+            code: ErrorCode::UnknownError,
             message: Some(err.to_string()),
         }),
     }

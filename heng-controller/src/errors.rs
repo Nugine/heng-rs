@@ -10,34 +10,33 @@ struct Anyhow(anyhow::Error);
 impl Reject for Anyhow {}
 
 #[derive(Debug)]
-struct Error(StatusCode, ErrorInfo);
+struct Error(ErrorInfo);
 impl Reject for Error {}
 
 pub fn reject_anyhow(err: anyhow::Error) -> Rejection {
     warp::reject::custom(Anyhow(err))
 }
 
-pub fn reject_error(status: StatusCode, code: ErrorCode, msg: Option<String>) -> Rejection {
-    warp::reject::custom(Error(
-        status,
-        ErrorInfo {
-            code: code as u32,
-            message: msg,
-        },
-    ))
+pub fn reject_error(code: ErrorCode, message: Option<String>) -> Rejection {
+    warp::reject::custom(Error(ErrorInfo { code, message }))
 }
 
 pub async fn recover(rejection: Rejection) -> Result<impl Reply, Rejection> {
     let status;
     let info;
     if let Some(Anyhow(err)) = rejection.find() {
-        status = StatusCode::INTERNAL_SERVER_ERROR;
-        info = ErrorInfo {
-            code: ErrorCode::UnknownError as u32,
-            message: Some(err.to_string()),
-        };
-    } else if let Some(Error(s, err)) = rejection.find() {
-        status = *s;
+        if let Some(err) = err.downcast_ref::<ErrorInfo>() {
+            status = err.code.as_status();
+            info = err.clone();
+        } else {
+            status = StatusCode::INTERNAL_SERVER_ERROR;
+            info = ErrorInfo {
+                code: ErrorCode::UnknownError,
+                message: Some(err.to_string()),
+            };
+        }
+    } else if let Some(Error(err)) = rejection.find() {
+        status = err.code.as_status();
         info = err.clone();
     } else {
         return Err(rejection);

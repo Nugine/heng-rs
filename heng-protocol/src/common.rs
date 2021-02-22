@@ -44,7 +44,7 @@ pub struct Test {
     pub policy: TestPolicy,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Environment {
     pub language: String,
     pub system: String,
@@ -52,7 +52,7 @@ pub struct Environment {
     pub options: Map<String, Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeLimit {
     pub memory: u64,
@@ -60,7 +60,7 @@ pub struct RuntimeLimit {
     pub output: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerLimit {
     pub memory: u64,
@@ -69,7 +69,7 @@ pub struct CompilerLimit {
     pub message: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Limit {
     pub runtime: RuntimeLimit,
     pub compiler: CompilerLimit,
@@ -77,9 +77,9 @@ pub struct Limit {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Executable {
-    source: File,
-    environment: Environment,
-    limit: Limit,
+    pub source: File,
+    pub environment: Environment,
+    pub limit: Limit,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use heng_controller::{App, Config};
+use heng_controller::Config;
 
 use std::env;
 
@@ -13,20 +13,20 @@ async fn main() -> Result<()> {
     dotenv().ok();
     setup_tracing();
 
-    load_config()?;
-    let app = App::new().await?;
-    app.run().await
+    let config = load_config()?;
+    heng_controller::init(config)?;
+    heng_controller::run().await
 }
 
 #[tracing::instrument(err)]
-fn load_config() -> Result<()> {
+fn load_config() -> Result<Config> {
     let path = env::current_dir()?.join(CONFIG_PATH);
 
     info!("loading config from {}", path.display());
-    let config = Config::init_from_file(&path)?;
+    let config = Config::from_file(&path)?;
     info!("config is loaded:\n{:#?}", config);
 
-    Ok(())
+    Ok(config)
 }
 
 fn setup_tracing() {
