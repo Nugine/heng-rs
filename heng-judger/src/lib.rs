@@ -31,9 +31,11 @@ pub fn init(config: Config) -> Result<()> {
 pub async fn run() -> Result<()> {
     let config = inject::<Config>();
     let remote_domain = &*config.judger.remote_domain;
+    let access_key = &config.judger.access_key;
+    let secret_key = &config.judger.secret_key;
 
-    let token = login::get_token(remote_domain).await?;
-    let ws_stream = login::connect_ws(remote_domain, &*token).await?;
+    let token = login::get_token(remote_domain, access_key, secret_key).await?;
+    let ws_stream = login::connect_ws(remote_domain, access_key, secret_key, &*token).await?;
 
     Judger::run(ws_stream).await
 }

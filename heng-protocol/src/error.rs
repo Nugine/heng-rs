@@ -9,6 +9,8 @@ pub enum ErrorCode {
     InvalidRequest = 1002,
     NotRegistered = 1003,
     AlreadyConnected = 1004,
+    SignatureMismatch = 1005,
+    PermissionDenied = 1006,
 }
 
 impl ErrorCode {
@@ -19,6 +21,8 @@ impl ErrorCode {
             ErrorCode::InvalidRequest => StatusCode::BAD_REQUEST,
             ErrorCode::NotRegistered => StatusCode::FORBIDDEN,
             ErrorCode::AlreadyConnected => StatusCode::BAD_REQUEST,
+            ErrorCode::SignatureMismatch => StatusCode::FORBIDDEN,
+            ErrorCode::PermissionDenied => StatusCode::FORBIDDEN,
         }
     }
 }

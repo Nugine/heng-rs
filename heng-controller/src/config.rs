@@ -15,6 +15,9 @@ pub struct Config {
 
     #[validate]
     pub judger: Judger,
+
+    #[validate]
+    pub auth: Auth,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -39,6 +42,15 @@ pub struct Judger {
 
     #[validate(range(min = 1000, max = 60000))]
     pub rpc_timeout: u64, // ms
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Auth {
+    #[validate(length(min = 1))]
+    pub root_access_key: String,
+
+    #[validate(length(min = 1))]
+    pub root_secret_key: String,
 }
 
 impl Config {
