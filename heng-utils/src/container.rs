@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use once_cell::sync::OnceCell;
 
+#[derive(Debug, Default)]
 pub struct Container {
     map: HashMap<TypeId, Arc<dyn Any + Send + Sync + 'static>>,
 }

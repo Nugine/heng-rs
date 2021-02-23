@@ -3,7 +3,6 @@
 pub mod config;
 pub mod judger;
 pub mod redis;
-mod utils;
 
 use crate::config::Config;
 use crate::judger::Judger;

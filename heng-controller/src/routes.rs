@@ -1,18 +1,19 @@
-use crate::container::inject;
 use crate::errors::{self, reject_anyhow, reject_error};
 use crate::external::ExternalModule;
 use crate::judger::{JudgeTask, JudgerInfo, JudgerModule};
 
+use heng_utils::container::inject;
+
 use heng_protocol::error::ErrorCode;
 use heng_protocol::external::{CallbackUrls, CreateJudgeRequest};
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
-use tokio::task;
-use uuid::Uuid;
 
 use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Deserialize;
+use tokio::task;
+use uuid::Uuid;
 use validator::Validate;
 use warp::filters::ws;
 use warp::reply::{self, Response};

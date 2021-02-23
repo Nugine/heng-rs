@@ -1,6 +1,7 @@
-use crate::container::inject;
-use crate::queue::Queue;
 use crate::Config;
+
+use heng_utils::container::inject;
+use heng_utils::queue::Queue;
 
 use heng_protocol::common as hp_common;
 use heng_protocol::error::ErrorCode;

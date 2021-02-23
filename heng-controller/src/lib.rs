@@ -1,8 +1,5 @@
 #![deny(clippy::all)]
 
-mod container;
-mod queue;
-
 mod config;
 mod errors;
 mod external;
@@ -11,10 +8,11 @@ mod redis;
 mod routes;
 
 pub use self::config::Config;
-use self::container::{inject, Container};
 use self::external::ExternalModule;
 use self::judger::JudgerModule;
 use self::redis::RedisModule;
+
+use heng_utils::container::{inject, Container};
 
 use std::net::SocketAddr;
 use std::sync::Arc;
