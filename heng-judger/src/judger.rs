@@ -1,23 +1,25 @@
 use crate::config::Config;
 use crate::redis::RedisModule;
+use crate::{WsMessage, WsStream};
+
+use heng_utils::container::inject;
 
 use heng_protocol::common::JudgeResult;
 use heng_protocol::error::ErrorCode;
-use heng_protocol::internal::ws_json::Message as RpcMessage;
-use heng_protocol::internal::ws_json::{Request as RpcRequest, Response as RpcResponse};
 use heng_protocol::internal::{ConnectionSettings, ErrorInfo, PartialConnectionSettings};
 
 use heng_protocol::internal::ws_json::{
-    CreateJudgeArgs, FinishJudgeArgs, ReportStatusArgs, UpdateJudgeArgs,
+    CreateJudgeArgs, FinishJudgeArgs, Message as RpcMessage, ReportStatusArgs,
+    Request as RpcRequest, Response as RpcResponse, UpdateJudgeArgs,
 };
 
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use chrono::Utc;
+use dashmap::DashMap;
 use futures::stream::SplitStream;
 use futures::StreamExt;
 use futures::TryFutureExt;
@@ -26,26 +28,23 @@ use serde_json::value::RawValue;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::{task, time};
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_tungstenite as ws;
 use tokio_tungstenite::tungstenite;
 use tracing::{debug, error, info, warn};
-use ws::tungstenite::protocol::frame::coding::CloseCode;
-use ws::tungstenite::protocol::CloseFrame;
-
-type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
-type WsMessage = tungstenite::Message;
+use tungstenite::protocol::frame::coding::CloseCode;
+use tungstenite::protocol::CloseFrame;
 
 pub struct Judger {
-    redis_module: RedisModule,
+    redis_module: Arc<RedisModule>,
     settings: Settings,
     counter: Mutex<Counter>,
     session: WsSession,
+    rpc_timeout: u64,
 }
 
 struct WsSession {
     sender: mpsc::Sender<WsMessage>,
     seq: AtomicU32,
-    callbacks: Mutex<HashMap<u32, oneshot::Sender<RpcResponse>>>,
+    callbacks: DashMap<u32, oneshot::Sender<RpcResponse>>,
 }
 
 struct Settings {
@@ -60,9 +59,11 @@ struct Counter {
 }
 
 impl Judger {
-    pub async fn run(redis_module: RedisModule, ws: WsStream) -> Result<()> {
-        let (ws_sink, ws_stream) = ws.split();
+    pub async fn run(ws_stream: WsStream) -> Result<()> {
+        let config = inject::<Config>();
+        let redis_module = inject::<RedisModule>();
 
+        let (ws_sink, ws_stream) = ws_stream.split();
         let (tx, rx) = mpsc::channel::<WsMessage>(4096);
 
         task::spawn(
@@ -73,26 +74,24 @@ impl Judger {
         );
 
         let judger = Arc::new(Self {
-            session: WsSession {
-                sender: tx,
-                seq: AtomicU32::new(0),
-                callbacks: Mutex::new(HashMap::new()),
-            },
             redis_module,
             settings: Settings {
                 status_report_interval: AtomicU64::new(1000),
+            },
+            session: WsSession {
+                sender: tx,
+                seq: AtomicU32::new(0),
+                callbacks: DashMap::new(),
             },
             counter: Mutex::new(Counter {
                 pending: 0,
                 judging: 0,
                 finished: 0,
             }),
+            rpc_timeout: config.judger.rpc_timeout,
         });
 
-        {
-            let judger = judger.clone();
-            task::spawn(async move { judger.report_status_loop().await });
-        }
+        task::spawn(judger.clone().report_status_loop());
 
         judger.main_loop(ws_stream).await
     }
@@ -138,17 +137,13 @@ impl Judger {
                             });
                         }
                         RpcMessage::Response { seq, body, .. } => {
-                            let this = self.clone();
-                            task::spawn(async move {
-                                let mut callbacks = this.session.callbacks.lock().await;
-                                match callbacks.remove(&seq) {
-                                    None => warn!(?seq, "no such callback"),
-                                    Some(cb) => match cb.send(body) {
-                                        Ok(()) => {}
-                                        Err(_) => warn!(?seq, "the callback is timeouted"),
-                                    },
-                                }
-                            });
+                            match self.session.callbacks.remove(&seq) {
+                                None => warn!(?seq, "no such callback"),
+                                Some((_, cb)) => match cb.send(body) {
+                                    Ok(()) => {}
+                                    Err(_) => warn!(?seq, "the callback is timeouted"),
+                                },
+                            }
                         }
                     }
                 }
@@ -162,35 +157,7 @@ impl Judger {
         Ok(())
     }
 
-    async fn wsrpc(&self, req: RpcRequest) -> Result<RpcResponse> {
-        let session = &self.session;
-        let seq = session.seq.fetch_add(1, Relaxed).wrapping_add(1);
-        let (tx, rx) = oneshot::channel();
-        let rpc_msg = RpcMessage::Request {
-            seq,
-            time: Utc::now(),
-            body: req,
-        };
-        let ws_msg = WsMessage::text(serde_json::to_string(&rpc_msg).unwrap());
-
-        {
-            let mut callbacks = session.callbacks.lock().await;
-            callbacks.insert(seq, tx);
-            session.sender.send(ws_msg).await.unwrap();
-        }
-
-        let rpc_timeout = Config::global().judger.rpc_timeout;
-        match time::timeout(Duration::from_millis(rpc_timeout), rx).await {
-            Ok(res) => Ok(res.unwrap()),
-            Err(err) => {
-                let mut callbacks = session.callbacks.lock().await;
-                let _ = callbacks.remove(&seq);
-                return Err(anyhow::Error::new(err));
-            }
-        }
-    }
-
-    async fn report_status_loop(&self) -> Result<()> {
+    async fn report_status_loop(self: Arc<Self>) -> Result<()> {
         loop {
             let delay = self.settings.status_report_interval.load(Relaxed);
             time::sleep(Duration::from_millis(delay)).await;
@@ -216,11 +183,6 @@ impl Judger {
         }
     }
 
-    async fn count<T>(&self, f: impl FnOnce(&mut Counter) -> T) -> T {
-        let mut counter = self.counter.lock().await;
-        f(&mut counter)
-    }
-
     async fn handle_rpc_request(self: Arc<Self>, req: RpcRequest) -> RpcResponse {
         match req {
             RpcRequest::CreateJudge(args) => to_null_response(self.create_judge(args).await),
@@ -230,6 +192,36 @@ impl Judger {
                 message: None,
             }),
         }
+    }
+
+    async fn wsrpc(&self, req: RpcRequest) -> Result<RpcResponse> {
+        let session = &self.session;
+        let seq = session.seq.fetch_add(1, Relaxed).wrapping_add(1);
+        let (tx, rx) = oneshot::channel();
+        let rpc_msg = RpcMessage::Request {
+            seq,
+            time: Utc::now(),
+            body: req,
+        };
+        let ws_msg = WsMessage::text(serde_json::to_string(&rpc_msg).unwrap());
+
+        {
+            session.callbacks.insert(seq, tx);
+            session.sender.send(ws_msg).await.unwrap();
+        }
+
+        match time::timeout(Duration::from_millis(self.rpc_timeout), rx).await {
+            Ok(res) => Ok(res.unwrap()),
+            Err(err) => {
+                let _ = session.callbacks.remove(&seq);
+                return Err(anyhow::Error::new(err));
+            }
+        }
+    }
+
+    async fn count<T>(&self, f: impl FnOnce(&mut Counter) -> T) -> T {
+        let mut counter = self.counter.lock().await;
+        f(&mut counter)
     }
 
     async fn control(
@@ -253,36 +245,11 @@ impl Judger {
         task::spawn(async move {
             self.count(|cnt| cnt.pending += 1).await;
 
-            // let h1 = {
-            //     let this = self.clone();
-            //     let update = UpdateJudgeArgs {
-            //         id: judge.id.clone(),
-            //         state: JudgeState::Confirmed,
-            //     };
-            //     task::spawn(async move { this.update_judge(update).await })
-            // };
-
-            // // time::sleep(Duration::from_millis(200)).await;
             self.count(|cnt| {
                 cnt.pending -= 1;
                 cnt.judging += 1;
             })
             .await;
-
-            // let h2 = {
-            //     let this = self.clone();
-            //     let update = UpdateJudgeArgs {
-            //         id: judge.id.clone(),
-            //         state: JudgeState::Judgeing,
-            //     };
-
-            //     task::spawn(async move { this.update_judge(update).await })
-            // };
-
-            // time::sleep(Duration::from_millis(200)).await;
-
-            // h1.await.ok();
-            // h2.await.ok();
 
             let finish = FinishJudgeArgs {
                 id: judge.id.clone(),

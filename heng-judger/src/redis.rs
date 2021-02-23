@@ -13,8 +13,7 @@ pub struct RedisModule {
 }
 
 impl RedisModule {
-    pub fn new() -> Result<Self> {
-        let config = Config::global();
+    pub fn new(config: &Config) -> Result<Self> {
         let redis_url = config.redis.url.as_str();
         let max_open = config.redis.max_open;
         let client = redis::Client::open(redis_url)?;

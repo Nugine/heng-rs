@@ -22,11 +22,11 @@ use chrono::Utc;
 use dashmap::DashMap;
 use futures::stream::SplitStream;
 use futures::{StreamExt, TryFutureExt};
-use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
+use tokio::sync::{mpsc, oneshot, RwLock};
 use tokio::task::{self, JoinHandle};
 use tokio::time;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 use warp::ws::{self, WebSocket};
 
@@ -61,7 +61,7 @@ enum JudgerState {
 
 struct WsSession {
     seq: AtomicU32,
-    callbacks: Mutex<HashMap<u32, oneshot::Sender<RpcResponse>>>,
+    callbacks: DashMap<u32, oneshot::Sender<RpcResponse>>,
     sender: mpsc::Sender<ws::Message>,
 }
 
@@ -165,7 +165,7 @@ impl JudgerModule {
 
     pub(crate) async fn __test_schedule(self: Arc<Self>) {
         time::sleep(Duration::from_secs(5)).await;
-        let tasks_count: usize = 50_0000;
+        let tasks_count: usize = 10_0000;
         tracing::info!(?tasks_count, "starting scheduler test");
 
         let instant = time::Instant::now();
@@ -206,7 +206,7 @@ impl JudgerModule {
             assert!(task_ids.contains(&task_id));
             // dbg!(result);
 
-            if i % (tasks_count / 1000) == 0 {
+            if i % (tasks_count / 100) == 0 {
                 let progress = 100.0 * i as f64 / tasks_count as f64;
                 tracing::info!(duration = ?instant.elapsed(), "scheduler test progress: {:.2} %",progress);
             }
@@ -234,7 +234,7 @@ impl Judger {
 
         let session = Arc::new(WsSession {
             seq: AtomicU32::new(0),
-            callbacks: Mutex::new(HashMap::new()),
+            callbacks: DashMap::new(),
             sender: tx,
         });
 
@@ -311,16 +311,13 @@ impl Judger {
                 }
                 RpcMessage::Response { seq, body, .. } => {
                     let session = session.clone();
-                    task::spawn(async move {
-                        let mut callbacks = session.callbacks.lock().await;
-                        match callbacks.remove(&seq) {
-                            None => warn!(?seq, "no such callback"),
-                            Some(cb) => match cb.send(body) {
-                                Ok(()) => {}
-                                Err(_) => warn!(?seq, "the callback is timeouted"),
-                            },
-                        }
-                    });
+                    match session.callbacks.remove(&seq) {
+                        None => warn!(?seq, "no such callback"),
+                        Some((_, cb)) => match cb.send(body) {
+                            Ok(()) => {}
+                            Err(_) => warn!(?seq, "the callback is timeouted"),
+                        },
+                    }
                 }
             }
         }
@@ -349,19 +346,15 @@ impl Judger {
         };
         let ws_msg = ws::Message::text(serde_json::to_string(&rpc_msg).unwrap());
 
-        {
-            let mut callbacks = session.callbacks.lock().await;
-            callbacks.insert(seq, tx);
-            if session.sender.send(ws_msg).await.is_err() {
-                return Err(format_err!("judger has disconnected"));
-            }
+        session.callbacks.insert(seq, tx);
+        if session.sender.send(ws_msg).await.is_err() {
+            return Err(format_err!("judger has disconnected"));
         }
 
         match time::timeout(Duration::from_millis(self.rpc_timeout), rx).await {
             Ok(res) => Ok(res.unwrap()),
             Err(err) => {
-                let mut callbacks = session.callbacks.lock().await;
-                let _ = callbacks.remove(&seq);
+                let _ = session.callbacks.remove(&seq);
                 return Err(anyhow::Error::new(err));
             }
         }

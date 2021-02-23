@@ -1,69 +1,39 @@
-#![deny(clippy::all)]
+mod config;
+mod judger;
+mod login;
+mod redis;
 
-pub mod config;
-pub mod judger;
-pub mod redis;
+pub use self::config::Config;
+use self::judger::Judger;
+use self::redis::RedisModule;
 
-use crate::config::Config;
-use crate::judger::Judger;
+use heng_utils::container::{inject, Container};
 
-use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
+use std::sync::Arc;
 
-use anyhow::{format_err, Result};
-use redis::RedisModule;
-use tokio_tungstenite as ws;
-use tracing::{error, info};
+use anyhow::Result;
 
-type WsStream = ws::WebSocketStream<tokio::net::TcpStream>;
+type WsStream = tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>;
+type WsMessage = tokio_tungstenite::tungstenite::Message;
+
+pub fn init(config: Config) -> Result<()> {
+    let redis_module = Arc::new(RedisModule::new(&config)?);
+
+    let mut container = Container::new();
+
+    container.register(Arc::new(config));
+    container.register(redis_module);
+
+    container.install_global();
+    Ok(())
+}
 
 pub async fn run() -> Result<()> {
-    info!("initializing redis module");
-    let redis_module = RedisModule::new()?;
-    info!("redis module is initialized");
+    let config = inject::<Config>();
+    let remote_domain = &*config.judger.remote_domain;
 
-    let config = Config::global();
-    let remote_domain = config.judger.remote_domain.as_str();
+    let token = login::get_token(remote_domain).await?;
+    let ws_stream = login::connect_ws(remote_domain, &*token).await?;
 
-    let token = get_token(remote_domain).await?;
-    let ws = connect_ws(remote_domain, &token).await?;
-
-    Judger::run(redis_module, ws).await
-}
-
-#[tracing::instrument(err)]
-async fn get_token(remote_domain: &str) -> Result<String> {
-    let token_url = format!("http://{}/v1/judgers/token", remote_domain);
-
-    // TODO: AK and SK
-
-    let body = AcquireTokenRequest {
-        max_task_count: 8,
-        name: None,
-        core_count: None,
-        software: None,
-    };
-
-    let http_client = reqwest::Client::new();
-    let res = http_client.post(&token_url).json(&body).send().await?;
-    if res.status().is_success() {
-        let output = res.json::<AcquireTokenOutput>().await?;
-        Ok(output.token)
-    } else {
-        let status = res.status();
-        let text = res.text().await.unwrap();
-        error!(?status, ?text, "failed to acquire token");
-        Err(format_err!("failed to acquire token"))
-    }
-}
-
-#[tracing::instrument(err)]
-async fn connect_ws(remote_domain: &str, token: &str) -> Result<WsStream> {
-    let ws_url = format!(
-        "ws://{}/v1/judgers/websocket?token={}",
-        remote_domain, token
-    );
-    info!("connecting to {}", ws_url);
-    let (ws_stream, _) = ws::connect_async(ws_url).await?;
-    info!("connected");
-    Ok(ws_stream)
+    Judger::run(ws_stream).await
 }
