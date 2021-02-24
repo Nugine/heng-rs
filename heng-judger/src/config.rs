@@ -1,9 +1,10 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use ubyte::ByteUnit;
+use validator::{Validate, ValidationError};
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Config {
@@ -12,6 +13,9 @@ pub struct Config {
 
     #[validate]
     pub redis: Redis,
+
+    #[validate]
+    pub data: Data,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -26,7 +30,7 @@ pub struct Judger {
     pub secret_key: String,
 
     #[validate(range(min = 1000, max = 60000))]
-    pub rpc_timeout: u64,
+    pub rpc_timeout: u64, // in milliseconds
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -36,6 +40,22 @@ pub struct Redis {
 
     #[validate(range(max = 64))]
     pub max_open: u64,
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Data {
+    #[validate(custom = "validate_absolute_path")]
+    pub directory: PathBuf,
+
+    pub download_size_limit: ByteUnit,
+}
+
+fn validate_absolute_path(path: &PathBuf) -> Result<(), ValidationError> {
+    if path.is_absolute() {
+        Ok(())
+    } else {
+        Err(ValidationError::new("requires absolute path"))
+    }
 }
 
 impl Config {

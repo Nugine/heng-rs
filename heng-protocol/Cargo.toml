@@ -13,8 +13,6 @@ serde_json = { version = "1.0.62", features = ["raw_value"] }
 validator = { version = "0.12.0", features = ["derive"] }
 thiserror = "1.0.23"
 http = "0.2.3"
-faster-hex = "0.5.0"
-sha2 = "0.9.3"
-hmac = "0.10.1"
 smallvec = "1.6.1"
 form_urlencoded = "1.0.1"
+heng-utils = { path = "../heng-utils" }

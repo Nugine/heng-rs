@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum File {
     #[serde(rename = "url")]
@@ -16,14 +16,14 @@ pub enum File {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum DynamicFile {
     BuiltIn { name: String },
     Remote { name: String, file: File },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TestPolicy {
     #[serde(rename = "fuse")]
@@ -32,19 +32,19 @@ pub enum TestPolicy {
     All,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestCase {
     pub input: String,
     pub output: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Test {
     pub cases: Vec<TestCase>,
     pub policy: TestPolicy,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Environment {
     pub language: String,
     pub system: String,
@@ -52,7 +52,7 @@ pub struct Environment {
     pub options: Map<String, Value>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeLimit {
     pub memory: u64,
@@ -60,7 +60,7 @@ pub struct RuntimeLimit {
     pub output: u64,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerLimit {
     pub memory: u64,
@@ -69,20 +69,20 @@ pub struct CompilerLimit {
     pub message: u64,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Limit {
     pub runtime: RuntimeLimit,
     pub compiler: CompilerLimit,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Executable {
     pub source: File,
     pub environment: Environment,
     pub limit: Limit,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Judge {
     #[serde(rename = "normal")]

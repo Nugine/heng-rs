@@ -1,26 +1,5 @@
-use hmac::{Hmac, Mac, NewMac};
-use sha2::{Digest, Sha256};
+use heng_utils::crypto::{hex_hmac_sha256, hex_sha256};
 use smallvec::SmallVec;
-
-fn to_hex_string(src: impl AsRef<[u8]>) -> String {
-    faster_hex::hex_string(src.as_ref()).unwrap()
-}
-
-fn hex_sha256(data: &[u8]) -> String {
-    let src = Sha256::digest(data);
-    to_hex_string(src)
-}
-
-fn hmac_sha256(key: &[u8], data: &[u8]) -> impl AsRef<[u8]> {
-    let mut m = <Hmac<Sha256>>::new_varkey(key).unwrap();
-    m.update(data.as_ref());
-    m.finalize().into_bytes()
-}
-
-fn hex_hmac_sha256(key: &[u8], data: &[u8]) -> String {
-    let src = hmac_sha256(key, data);
-    to_hex_string(src)
-}
 
 fn uri_encode(input: &[u8]) -> String {
     const HEX_UPPERCASE_TABLE: &[u8] = b"0123456789ABCDEF";

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
-use crate::common::JudgeResult;
+use crate::common::{DynamicFile, File, Judge, JudgeResult, Test};
 
 use super::{ErrorInfo, JudgeState, PartialConnectionSettings};
 
@@ -41,9 +41,14 @@ pub enum Response {
     Error(ErrorInfo),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateJudgeArgs {
-    pub id: String, // TODO: complete this definition
+    pub id: String,
+    pub data: Option<File>,
+    pub dynamic_files: Option<Vec<DynamicFile>>,
+    pub judge: Judge,
+    pub test: Test,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

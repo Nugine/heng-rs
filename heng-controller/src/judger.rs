@@ -133,6 +133,14 @@ impl JudgerModule {
 
     pub async fn schedule(self: Arc<Self>, task: JudgeTask) -> Result<()> {
         task::spawn(async move {
+            let args = CreateJudgeArgs {
+                id: task.id.to_string(),
+                data: task.data.clone(),
+                dynamic_files: task.dynamic_files.clone(),
+                judge: task.judge.clone(),
+                test: task.test.clone(),
+            };
+
             loop {
                 let judger = loop {
                     let weak_judger = self.available_queue.pop().await;
@@ -146,11 +154,7 @@ impl JudgerModule {
                     (task.update_callback.clone(), task.finish_callback.clone()),
                 );
 
-                let args = CreateJudgeArgs {
-                    id: task.id.to_string(),
-                };
-
-                if let Err(err) = judger.create_judge(args).await {
+                if let Err(err) = judger.create_judge(args.clone()).await {
                     error!(?judger.ws_id, ?judger.info, %err, "failed to create judge");
                     judger.tasks.remove(&task.id);
                     continue;

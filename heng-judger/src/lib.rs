@@ -1,9 +1,11 @@
 mod config;
+mod data;
 mod judger;
 mod login;
 mod redis;
 
 pub use self::config::Config;
+use self::data::DataModule;
 use self::judger::Judger;
 use self::redis::RedisModule;
 
@@ -18,11 +20,13 @@ type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 pub fn init(config: Config) -> Result<()> {
     let redis_module = Arc::new(RedisModule::new(&config)?);
+    let data_module = Arc::new(DataModule::new(&config, redis_module.clone())?);
 
     let mut container = Container::new();
 
     container.register(Arc::new(config));
     container.register(redis_module);
+    container.register(data_module);
 
     container.install_global();
     Ok(())
