@@ -4,3 +4,4 @@ pub mod common;
 pub mod error;
 pub mod external;
 pub mod internal;
+pub mod signature;

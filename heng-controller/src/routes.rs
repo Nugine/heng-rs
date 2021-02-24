@@ -4,11 +4,11 @@ use crate::external::ExternalModule;
 use crate::judger::{JudgeTask, JudgerInfo, JudgerModule};
 
 use heng_utils::container::inject;
-use heng_utils::signature::calc_signature;
 
 use heng_protocol::error::ErrorCode;
 use heng_protocol::external::{CallbackUrls, CreateJudgeRequest};
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
+use heng_protocol::signature::calc_signature;
 use serde::de::DeserializeOwned;
 use serde_json::from_slice;
 use warp::http::HeaderValue;

@@ -1,9 +1,9 @@
 use crate::WsStream;
 
 use heng_protocol::internal::http::{AcquireTokenOutput, AcquireTokenRequest};
+use heng_protocol::signature::calc_signature;
 
 use anyhow::{format_err, Result};
-use heng_utils::signature::calc_signature;
 use reqwest::header::HeaderValue;
 use tracing::{error, info};
 
