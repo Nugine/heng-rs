@@ -56,3 +56,10 @@ where
         None => panic!("failed to inject type {:?}", any::type_name::<T>()),
     }
 }
+
+pub fn inject_optional<T>() -> Option<Arc<T>>
+where
+    T: Any + Send + Sync + 'static,
+{
+    Container::global().inject::<T>()
+}

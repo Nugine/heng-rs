@@ -190,6 +190,7 @@ impl JudgerModule {
                         source: hp_common::File::Direct {
                             content: "".to_owned(),
                             hashsum: None,
+                            base64: false,
                         },
                         environment: Default::default(),
                         limit: Default::default(),

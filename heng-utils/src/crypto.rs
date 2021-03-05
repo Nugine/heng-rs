@@ -20,3 +20,8 @@ pub fn hex_hmac_sha256(key: &[u8], data: &[u8]) -> String {
     let src = hmac_sha256(key, data);
     to_hex_string(src.as_ref())
 }
+
+pub fn is_hex_sha256_format(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    bytes.len() == 64 && bytes.iter().all(u8::is_ascii_hexdigit)
+}

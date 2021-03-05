@@ -13,6 +13,7 @@ pub enum File {
     Direct {
         content: String,
         hashsum: Option<String>,
+        base64: bool,
     },
 }
 

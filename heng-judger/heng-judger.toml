@@ -9,5 +9,23 @@ url = "redis://localhost:6379/1"
 max_open = 10
 
 [data]
-directory = "/tmp/heng-judger"
+directory = "/tmp/heng-judger/data"
 download_size_limit = "64MiB"
+
+[executor]
+nsjail_config = "/etc/nsjail/sandbox.cfg"
+workspace_root = "/tmp/heng-judger/workspace"
+uid = 1025
+gid = 1025
+
+[executor.hard_limit]
+cpu_time = 16000
+memory = "256 MiB"
+output = "256 MiB"
+pids = 16
+
+[executor.compilers]
+c = "/usr/bin/gcc"
+cpp = "/usr/bin/g++"
+java = "/usr/bin/javac"
+rust = "/usr/bin/rustc"

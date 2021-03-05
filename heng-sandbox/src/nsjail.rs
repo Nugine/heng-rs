@@ -7,11 +7,9 @@ use anyhow::{format_err, Context, Result};
 use log::{debug, error};
 
 pub struct NsjailArgs {
-    config: PathBuf,
-    workspace: PathBuf,
-    time_limit: Option<u32>,   // seconds
-    rlimit_as: Option<u32>,    // MB
-    rlimit_fsize: Option<u32>, // MB
+    pub config: PathBuf,
+    pub workspace: PathBuf,
+    pub time_limit: Option<u32>, // seconds
 }
 
 pub fn exec(nsjail: &NsjailArgs, sandbox: &SandboxArgs) -> Result<SandboxOutput> {
@@ -22,19 +20,12 @@ pub fn exec(nsjail: &NsjailArgs, sandbox: &SandboxArgs) -> Result<SandboxOutput>
     let mut cmd = Command::new("nsjail");
 
     cmd.arg("-C").arg(&nsjail.config);
+
     cmd.arg("-D").arg(&nsjail.workspace);
     cmd.arg("-B").arg(&nsjail.workspace);
 
     if let Some(time) = nsjail.time_limit {
         cmd.arg("-t").arg(time.to_string());
-    }
-
-    if let Some(mem) = nsjail.rlimit_as {
-        cmd.arg("--rlimit_as").arg(mem.to_string());
-    }
-
-    if let Some(fsize) = nsjail.rlimit_fsize {
-        cmd.arg("--rlimit_fsize").arg(fsize.to_string());
     }
 
     cmd.arg("--");
@@ -64,33 +55,3 @@ pub fn exec(nsjail: &NsjailArgs, sandbox: &SandboxArgs) -> Result<SandboxOutput>
         Err(format_err!("child process failed"))
     }
 }
-
-// #[test]
-// fn test_exec() {
-//     use std::env;
-
-//     env::set_var("RUST_LOG", "debug");
-//     env_logger::init();
-
-//     let nsjail_args = NsjailArgs {
-//         config: "sandbox.cfg".into(),
-//         workspace: "/tmp/heng-sandbox".into(),
-//         time_limit: None,
-//         rlimit_as: None,
-//         rlimit_fsize: None,
-//     };
-
-//     let sandbox_args = SandboxArgs {
-//         bin: "ls".into(),
-//         args: Vec::new(),
-//         stdin: Some("/dev/null".into()),
-//         stdout: Some("/tmp/heng-sandbox/testout".into()),
-//         stderr: Some("/tmp/heng-sandbox/testerr".into()),
-//         uid: None,
-//         gid: None,
-//         memory_limit: None,
-//         max_pids_limit: None,
-//     };
-//     let output = exec(&nsjail_args, &sandbox_args).unwrap();
-//     dbg!(output);
-// }

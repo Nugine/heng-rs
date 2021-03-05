@@ -1,6 +1,18 @@
+macro_rules! reject_error {
+    ($code: expr, $msg: expr) => {
+        return Err(ErrorInfo {
+            code: $code,
+            message: $msg,
+        }
+        .into())
+    };
+}
+
 mod config;
 mod data;
+mod exec;
 mod judger;
+pub mod lang;
 mod login;
 mod redis;
 

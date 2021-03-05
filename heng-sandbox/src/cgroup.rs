@@ -97,16 +97,12 @@ impl Cgroup {
         add_pid_to_cgroup(&self.cg_cpu, child_pid).context("failed to add pid to cgroup")?;
         add_pid_to_cgroup(&self.cg_memory, child_pid).context("failed to add pid to cgroup")?;
 
-        if let Some(memory_limit) = args.memory_limit {
-            write_cgroup(
-                &self.cg_memory,
-                "memory.limit_in_bytes",
-                memory_limit.saturating_mul(1024),
-            )
-            .context("failed to set memory limit")?;
+        if let Some(memory_limit) = args.cg_limit_memory {
+            write_cgroup(&self.cg_memory, "memory.limit_in_bytes", memory_limit)
+                .context("failed to set memory limit")?;
         }
 
-        if let Some(pids_max) = args.max_pids_limit {
+        if let Some(pids_max) = args.cg_limit_max_pids {
             write_cgroup(&self.cg_pids, "pids.max", pids_max)
                 .context("failed to set max pids limit")?;
             add_pid_to_cgroup(&&self.cg_pids, child_pid).context("failed to add pid to cgroup")?;

@@ -41,16 +41,25 @@ pub struct SandboxArgs {
     pub gid: Option<u32>,
 
     #[structopt(long)]
-    pub rlimit_cpu: Option<u32>, // seconds
-
-    #[structopt(long)]
-    pub memory_limit: Option<u64>, // KiB
-
-    #[structopt(long)]
     pub real_time_limit: Option<u64>, // milliseconds
 
     #[structopt(long)]
-    pub max_pids_limit: Option<u32>,
+    pub rlimit_cpu: Option<u32>, // seconds
+
+    #[structopt(long)]
+    pub rlimit_as: Option<u64>, // bytes
+
+    #[structopt(long)]
+    pub rlimit_data: Option<u64>, // bytes
+
+    #[structopt(long)]
+    pub rlimit_fsize: Option<u64>, // bytes
+
+    #[structopt(long)]
+    pub cg_limit_memory: Option<u64>, // bytes
+
+    #[structopt(long)]
+    pub cg_limit_max_pids: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -93,12 +102,29 @@ impl SandboxArgs {
                 .arg(real_time_limit.to_string());
         }
 
-        if let Some(memory_limit) = self.memory_limit {
-            cmd.arg("--memory-limit").arg(memory_limit.to_string());
+        if let Some(rlimit_cpu) = self.rlimit_cpu {
+            cmd.arg("--rlimit-cpu").arg(rlimit_cpu.to_string());
         }
 
-        if let Some(max_pids_limit) = self.max_pids_limit {
-            cmd.arg("--max-pids-limit").arg(max_pids_limit.to_string());
+        if let Some(rlimit_as) = self.rlimit_as {
+            cmd.arg("--rlimit-as").arg(rlimit_as.to_string());
+        }
+
+        if let Some(rlimit_data) = self.rlimit_data {
+            cmd.arg("--rlimit-data").arg(rlimit_data.to_string());
+        }
+        if let Some(rlimit_fsize) = self.rlimit_fsize {
+            cmd.arg("--rlimit-fsize").arg(rlimit_fsize.to_string());
+        }
+
+        if let Some(cg_limit_memory) = self.cg_limit_memory {
+            cmd.arg("--cg-limit-memory")
+                .arg(cg_limit_memory.to_string());
+        }
+
+        if let Some(cg_limit_max_pids) = self.cg_limit_max_pids {
+            cmd.arg("--cg-limit-max-pids")
+                .arg(cg_limit_max_pids.to_string());
         }
 
         cmd.arg("--");

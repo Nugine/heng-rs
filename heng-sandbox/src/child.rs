@@ -36,6 +36,18 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
         Resource::CPU.set(rlimit_cpu, rlimit_cpu)?;
     }
 
+    if let Some(rlimit_as) = args.rlimit_as.map(|r| Rlim::from_raw(r as _)) {
+        Resource::AS.set(rlimit_as, rlimit_as)?;
+    }
+
+    if let Some(rlimit_data) = args.rlimit_data.map(|r| Rlim::from_raw(r as _)) {
+        Resource::DATA.set(rlimit_data, rlimit_data)?;
+    }
+
+    if let Some(rlimit_fsize) = args.rlimit_fsize.map(|r| Rlim::from_raw(r as _)) {
+        Resource::FSIZE.set(rlimit_fsize, rlimit_fsize)?;
+    }
+
     let execvp_bin = CString::new(args.bin.as_str())?;
 
     let mut c_args = Vec::new();
