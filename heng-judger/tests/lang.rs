@@ -14,7 +14,7 @@ use tracing::debug;
 fn init() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        dotenv::dotenv().ok();
+        std::env::set_var("RUST_LOG", "debug");
         setup_tracing();
         let config = Config::from_file("heng-judger.toml").unwrap();
         let mut container = Container::new();
@@ -55,16 +55,30 @@ fn c_cpp() -> Result<()> {
     };
 
     let compile_output = cpp
-        .compile(&src_path, limit)
+        .compile(&src_path, &limit)
         .context("failed to compile c/cpp code")?;
 
     debug!(?compile_output);
-    if !compile_output.is_success() {
+    if !compile_output.sandbox_output.is_success() {
         let ce_msg = fs::read_to_string(&compile_output.ce_path)?;
         debug!(?ce_msg);
     }
 
-    assert!(compile_output.is_success());
+    assert!(compile_output.sandbox_output.is_success());
+
+    let userout_path = workspace.join("__user_out");
+    let sandbox_output = cpp.run(
+        &compile_output.exe_path,
+        "/dev/null".as_ref(),
+        &userout_path,
+        "/dev/null".as_ref(),
+        &limit,
+    )?;
+
+    debug!(?sandbox_output);
+    assert!(sandbox_output.is_success());
+    let userout = fs::read_to_string(&userout_path)?;
+    assert_eq!(userout, "hello\n");
 
     Ok(())
 }

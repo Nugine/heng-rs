@@ -7,6 +7,7 @@ use heng_sandbox::{SandboxArgs, SandboxOutput};
 use heng_utils::container::inject;
 use heng_utils::math::roundup_div;
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
@@ -14,14 +15,14 @@ use nix::unistd::{self, Gid, Uid};
 
 pub trait Language {
     fn needs_compile(&self) -> bool;
-    fn compile(&self, src_path: &Path, hard_limit: Limit) -> Result<CompileOutput>;
+    fn compile(&self, src_path: &Path, hard_limit: &Limit) -> Result<CompileOutput>;
     fn run(
         &self,
         exe_path: &Path,
-        stdin: PathBuf,
-        stdout: PathBuf,
-        stderr: PathBuf,
-        hard_limit: Limit,
+        stdin: &Path,
+        stdout: &Path,
+        stderr: &Path,
+        hard_limit: &Limit,
     ) -> Result<SandboxOutput>;
 }
 
@@ -42,12 +43,12 @@ pub struct Limit {
 #[allow(clippy::too_many_arguments)]
 fn sandbox_exec(
     workspace: PathBuf,
-    bin: String,
-    args: Vec<String>,
+    bin: OsString,
+    args: Vec<OsString>,
     stdin: PathBuf,
     stdout: PathBuf,
     stderr: PathBuf,
-    hard_limit: Limit,
+    hard_limit: &Limit,
 ) -> Result<SandboxOutput> {
     let config = inject::<Config>();
     let cfg_hard_limit = &config.executor.hard_limit;
@@ -90,10 +91,4 @@ fn sandbox_exec(
     unistd::chown(&workspace, Some(unistd::getuid()), Some(unistd::getgid()))?;
 
     result
-}
-
-impl CompileOutput {
-    pub fn is_success(&self) -> bool {
-        self.sandbox_output.code == 0
-    }
 }

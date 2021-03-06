@@ -6,8 +6,8 @@ use log::info;
 
 fn gcc_compile(src: &str, bin: &str) -> Result<SandboxOutput> {
     let args = SandboxArgs {
-        bin: "gcc".to_owned(),
-        args: vec!["-o".to_owned(), bin.to_owned(), src.to_owned()],
+        bin: "gcc".into(),
+        args: vec!["-o".into(), bin.into(), src.into()],
         cg_limit_memory: Some(256 * 1024 * 1024), // 256 MiB
         real_time_limit: Some(3000),              // 3000 ms
         ..Default::default()
@@ -69,7 +69,7 @@ async fn t01_empty() -> Result<()> {
     let bin = tmp!("t01_empty");
 
     let args = &SandboxArgs {
-        bin: bin.to_owned(),
+        bin: bin.into(),
         ..Default::default()
     };
 
@@ -93,7 +93,7 @@ async fn t02_sleep() -> Result<()> {
     let bin = tmp!("t02_sleep");
 
     let args = &SandboxArgs {
-        bin: bin.to_owned(),
+        bin: bin.into(),
         real_time_limit: Some(1000),
         ..Default::default()
     };
@@ -118,7 +118,7 @@ async fn t03_forkbomb() -> Result<()> {
     let bin = tmp!("t03_forkbomb");
 
     let args = &SandboxArgs {
-        bin: bin.to_owned(),
+        bin: bin.into(),
         cg_limit_max_pids: Some(3),
         real_time_limit: Some(1000),
         stdout: Some(tmp!("t03_forkbomb_stdout").into()),
@@ -158,7 +158,7 @@ async fn t05_oom() -> Result<()> {
     let bin = tmp!("t05_oom");
 
     let args = &SandboxArgs {
-        bin: bin.to_owned(),
+        bin: bin.into(),
         cg_limit_memory: Some(16 * 1024 * 1024), // 16 MiB
         real_time_limit: Some(1000),
         ..Default::default()

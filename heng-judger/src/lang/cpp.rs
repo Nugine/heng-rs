@@ -53,7 +53,7 @@ impl Language for Cpp {
         true
     }
 
-    fn compile(&self, src_path: &Path, hard_limit: Limit) -> Result<CompileOutput> {
+    fn compile(&self, src_path: &Path, hard_limit: &Limit) -> Result<CompileOutput> {
         let is_cpp = self.std.is_cpp();
         let dir = src_path.parent().unwrap();
 
@@ -75,34 +75,34 @@ impl Language for Cpp {
             &config.executor.compilers.c
         };
 
-        let mut args: Vec<String> = Vec::new();
+        let mut args: Vec<OsString> = Vec::new();
         {
-            args.push("--std".to_owned());
-            args.push(self.std.as_gnu_str().to_owned());
+            args.push("--std".into());
+            args.push(self.std.as_gnu_str().into());
         }
         if self.o2 {
-            args.push("-O2".to_owned());
+            args.push("-O2".into());
         }
         {
-            args.push("-static".to_owned());
+            args.push("-static".into());
         }
         if !is_cpp {
             // https://stackoverflow.com/questions/5419366/why-do-i-have-to-explicitly-link-with-libm
-            args.push("-lm".to_owned());
+            args.push("-lm".into());
         }
         {
-            args.push("-o".to_owned());
-            args.push(exe_path.to_string_lossy().into());
+            args.push("-o".into());
+            args.push(exe_path.as_os_str().to_owned());
         }
         {
-            args.push(real_src_path.to_string_lossy().into());
+            args.push(real_src_path.into());
         }
 
         let ce_path = dir.join("ce_msg");
 
         let sandbox_output = sandbox_exec(
             dir.to_owned(),
-            bin.to_string_lossy().into(),
+            bin.into(),
             args,
             "/dev/null".into(),
             "/dev/null".into(),
@@ -120,11 +120,20 @@ impl Language for Cpp {
     fn run(
         &self,
         exe_path: &Path,
-        stdin: PathBuf,
-        stdout: PathBuf,
-        stderr: PathBuf,
-        hard_limit: Limit,
+        stdin: &Path,
+        stdout: &Path,
+        stderr: &Path,
+        hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        todo!()
+        let dir = exe_path.parent().unwrap();
+        sandbox_exec(
+            dir.to_owned(),
+            exe_path.into(),
+            Vec::new(),
+            stdin.to_owned(),
+            stdout.to_owned(),
+            stderr.to_owned(),
+            hard_limit,
+        )
     }
 }

@@ -5,6 +5,7 @@ use crate::SandboxArgs;
 use std::convert::Infallible as Never;
 use std::ffi::CString;
 use std::io;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::ptr;
 
@@ -48,14 +49,14 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
         Resource::FSIZE.set(rlimit_fsize, rlimit_fsize)?;
     }
 
-    let execvp_bin = CString::new(args.bin.as_str())?;
+    let execvp_bin = CString::new(args.bin.as_bytes())?;
 
     let mut c_args = Vec::new();
     let mut execvp_argv: Vec<*const libc::c_char> = Vec::with_capacity(args.args.len() + 2);
 
     execvp_argv.push(execvp_bin.as_ptr());
     for a in &args.args {
-        let c = CString::new(a.as_str())?;
+        let c = CString::new(a.as_bytes())?;
         execvp_argv.push(c.as_ptr());
         c_args.push(c);
     }
@@ -80,7 +81,8 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
 
     unsafe { libc::execvp(execvp_bin.as_ptr(), execvp_argv.as_ptr()) };
 
-    Err(io::Error::last_os_error()).with_context(|| format!("failed to execvp: bin = {}", args.bin))
+    Err(io::Error::last_os_error())
+        .with_context(|| format!("failed to execvp: bin = {:?}", args.bin))
 }
 
 fn redirect_stdin(stdin: &Path) -> nix::Result<()> {

@@ -1,0 +1,67 @@
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'heng-sandbox/**'
+      - 'heng-judger/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'heng-sandbox/**'
+      - 'heng-judger/**'
+
+name: heng-judger
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install nsjail
+        run: |
+          sudo apt update -y
+          sudo apt install -y \
+            autoconf \
+            bison \
+            flex \
+            gcc \
+            g++ \
+            git \
+            libprotobuf-dev \
+            libnl-route-3-dev \
+            libtool \
+            make \
+            pkg-config \
+            protobuf-compiler
+          git clone https://github.com/google/nsjail.git -b master --depth 1
+          cd nsjail
+          make all
+          sudo cp ./nsjail /usr/local/bin/nsjail
+          cd ..
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p heng-sandbox --release
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p heng-judger --tests
+      - name: Install heng-sandbox
+        run: sudo cp ./target/release/heng-sandbox /usr/local/bin/heng-sandbox
+      - name: Put nsjail config
+        run: |
+          sudo mkdir /etc/nsjail
+          sudo cp ./heng-sandbox/sandbox.cfg /etc/nsjail/sandbox.cfg
+      - name: Integration test
+        run: |
+          cd heng-judger
+          cargo test -p heng-judger ___ 2>&1 | grep Running | awk '{print $2}' > test_paths
+          cat test_paths | xargs -I {} sudo {}  --test-threads=1

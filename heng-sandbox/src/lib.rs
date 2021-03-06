@@ -9,6 +9,7 @@ pub mod nsjail;
 
 use self::cgroup::Cgroup;
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
@@ -21,9 +22,9 @@ use structopt::StructOpt;
 
 #[derive(Debug, Default, Serialize, Deserialize, StructOpt)]
 pub struct SandboxArgs {
-    pub bin: String,
+    pub bin: OsString,
 
-    pub args: Vec<String>,
+    pub args: Vec<OsString>,
 
     #[structopt(long)]
     pub stdin: Option<PathBuf>,
@@ -130,6 +131,13 @@ impl SandboxArgs {
         cmd.arg("--");
         cmd.arg(&self.bin);
         cmd.args(&self.args);
+    }
+}
+
+impl SandboxOutput {
+    pub fn is_success(&self) -> bool {
+        let exited = libc::WIFEXITED(self.status);
+        exited && self.code == 0
     }
 }
 
