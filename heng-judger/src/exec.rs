@@ -9,7 +9,6 @@ use heng_protocol::common::{DynamicFile, File, Judge, JudgeResult, Test};
 use heng_protocol::error::ErrorCode;
 use heng_protocol::internal::ErrorInfo;
 use heng_utils::auto_join::auto_join;
-use heng_utils::container::inject;
 
 use anyhow::Result;
 use tracing::error;

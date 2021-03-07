@@ -1,5 +1,4 @@
 use crate::config::Config;
-use crate::redis::RedisModule;
 use crate::{WsMessage, WsStream};
 
 use heng_utils::container::inject;
@@ -34,7 +33,6 @@ use tungstenite::protocol::frame::coding::CloseCode;
 use tungstenite::protocol::CloseFrame;
 
 pub struct Judger {
-    redis_module: Arc<RedisModule>,
     settings: Settings,
     counter: Mutex<Counter>,
     session: WsSession,
@@ -61,7 +59,6 @@ struct Counter {
 impl Judger {
     pub async fn run(ws_stream: WsStream) -> Result<()> {
         let config = inject::<Config>();
-        let redis_module = inject::<RedisModule>();
 
         let (ws_sink, ws_stream) = ws_stream.split();
         let (tx, rx) = mpsc::channel::<WsMessage>(4096);
@@ -74,7 +71,6 @@ impl Judger {
         );
 
         let judger = Arc::new(Self {
-            redis_module,
             settings: Settings {
                 status_report_interval: AtomicU64::new(1000),
             },

@@ -14,12 +14,10 @@ mod exec;
 mod judger;
 pub mod lang;
 mod login;
-mod redis;
 
 pub use self::config::Config;
 use self::data::DataModule;
 use self::judger::Judger;
-use self::redis::RedisModule;
 
 use heng_utils::container::{inject, Container};
 
@@ -31,13 +29,11 @@ type WsStream = tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>;
 type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 pub fn init(config: Config) -> Result<()> {
-    let redis_module = Arc::new(RedisModule::new(&config)?);
-    let data_module = Arc::new(DataModule::new(&config, redis_module.clone())?);
+    let data_module = Arc::new(DataModule::new(&config)?);
 
     let mut container = Container::new();
 
     container.register(Arc::new(config));
-    container.register(redis_module);
     container.register(data_module);
 
     container.install_global();

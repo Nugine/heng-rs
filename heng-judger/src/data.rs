@@ -1,4 +1,3 @@
-use crate::redis::RedisModule;
 use crate::Config;
 
 use heng_protocol::common as hp_common;
@@ -9,7 +8,6 @@ use std::fs;
 use std::io::{BufReader, Write};
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
@@ -20,7 +18,6 @@ use tracing::{error, warn};
 use zip::ZipArchive;
 
 pub struct DataModule {
-    redis_module: Arc<RedisModule>,
     directory: PathBuf,
     download_size_limit: u64,
 }
@@ -34,7 +31,7 @@ fn unzip(file_path: &Path, target_dir: &Path) -> Result<()> {
 }
 
 impl DataModule {
-    pub fn new(config: &Config, redis_module: Arc<RedisModule>) -> Result<Self> {
+    pub fn new(config: &Config) -> Result<Self> {
         let directory = &config.data.directory;
         if !directory.exists() {
             fs::create_dir_all(directory).with_context(|| {
@@ -45,7 +42,6 @@ impl DataModule {
         let download_size_limit = config.data.download_size_limit.as_u64();
 
         Ok(Self {
-            redis_module,
             directory: directory.clone(),
             download_size_limit,
         })
