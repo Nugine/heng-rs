@@ -1,12 +1,10 @@
-use heng_utils::os_cmd::OsCmd;
-
 use super::*;
 
-pub struct Python {}
+pub struct JavaScript {}
 
-impl Language for Python {
+impl Language for JavaScript {
     fn lang_name(&self) -> &str {
-        "python"
+        "javascript"
     }
 
     fn needs_compile(&self) -> bool {
@@ -14,7 +12,7 @@ impl Language for Python {
     }
 
     fn src_name(&self) -> &str {
-        "src.py"
+        "src.js"
     }
 
     fn msg_name(&self) -> &str {
@@ -35,7 +33,7 @@ impl Language for Python {
     ) -> Result<SandboxOutput> {
         let config = inject::<Config>();
         let src_path = workspace.join(self.src_name());
-        let mut cmd = OsCmd::new(&config.executor.runtimes.python);
+        let mut cmd = OsCmd::new(&config.executor.runtimes.node);
         cmd.arg(src_path);
 
         sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)

@@ -1,5 +1,6 @@
 pub mod c_cpp;
 pub mod java;
+pub mod javascript;
 pub mod python;
 pub mod rust;
 

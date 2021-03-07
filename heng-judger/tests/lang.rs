@@ -1,5 +1,6 @@
 use heng_judger::lang::c_cpp::{CCpp, CCppStd};
 use heng_judger::lang::java::Java;
+use heng_judger::lang::javascript::JavaScript;
 use heng_judger::lang::python::Python;
 use heng_judger::lang::rust::Rust;
 use heng_judger::lang::Language;
@@ -166,4 +167,14 @@ fn lang_python() -> Result<()> {
     let expected_output = "hello\n";
 
     test_lang("__test_python", &python, source_code, expected_output)
+}
+
+#[test]
+fn lang_javascript() -> Result<()> {
+    let js = JavaScript {};
+
+    let source_code = r#"console.log("hello")"#;
+    let expected_output = "hello\n";
+
+    test_lang("__test_javascript", &js, source_code, expected_output)
 }
