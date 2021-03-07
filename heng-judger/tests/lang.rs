@@ -48,8 +48,8 @@ fn test_lang(
 
     fs::write(&src_path, source_code)?;
 
-    let limit = lang::Limit {
-        cpu_time: 2000,
+    let compile_limit = lang::Limit {
+        cpu_time: 3000,
         memory: config.executor.hard_limit.memory.as_u64(),
         output: config.executor.hard_limit.output.as_u64(),
         pids: config.executor.hard_limit.pids,
@@ -57,7 +57,7 @@ fn test_lang(
 
     if lang.needs_compile() {
         let compile_output = lang
-            .compile(workspace.clone(), &limit)
+            .compile(workspace.clone(), &compile_limit)
             .context("failed to compile code")?;
 
         debug!(name=?lang.lang_name(), ?compile_output);
@@ -72,6 +72,11 @@ fn test_lang(
         assert!(compile_output.is_success());
     }
 
+    let runtime_limit = lang::Limit {
+        cpu_time: 1000,
+        ..compile_limit
+    };
+
     let userout_path = workspace.join("__user_out");
     let sandbox_output = lang
         .run(
@@ -79,7 +84,7 @@ fn test_lang(
             "/dev/null".into(),
             userout_path.clone(),
             "/dev/null".into(),
-            &limit,
+            &runtime_limit,
         )
         .context("failed to run user process")?;
 
