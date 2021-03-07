@@ -28,4 +28,4 @@ pids = 16
 c = "/usr/bin/gcc"
 cpp = "/usr/bin/g++"
 java = "/usr/bin/javac"
-rust = "/usr/bin/rustc"
+rust = "/usr/local/rust/bin/rustc"

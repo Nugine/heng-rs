@@ -1,4 +1,5 @@
-pub mod cpp;
+pub mod c_cpp;
+pub mod rust;
 
 use crate::Config;
 
@@ -8,29 +9,25 @@ use heng_utils::container::inject;
 use heng_utils::math::roundup_div;
 
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use nix::unistd::{self, Gid, Uid};
 
 pub trait Language {
     fn needs_compile(&self) -> bool;
-    fn compile(&self, src_path: &Path, hard_limit: &Limit) -> Result<CompileOutput>;
+    fn src_name(&self) -> &str;
+    fn exe_name(&self) -> &str;
+    fn msg_name(&self) -> &str;
+    fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput>;
     fn run(
         &self,
-        exe_path: &Path,
-        stdin: &Path,
-        stdout: &Path,
-        stderr: &Path,
+        workspace: PathBuf,
+        stdin: PathBuf,
+        stdout: PathBuf,
+        stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput>;
-}
-
-#[derive(Debug)]
-pub struct CompileOutput {
-    pub sandbox_output: SandboxOutput,
-    pub exe_path: PathBuf,
-    pub ce_path: PathBuf,
 }
 
 pub struct Limit {
@@ -43,8 +40,9 @@ pub struct Limit {
 #[allow(clippy::too_many_arguments)]
 fn sandbox_exec(
     workspace: PathBuf,
-    bin: OsString,
+    bin: PathBuf,
     args: Vec<OsString>,
+    env: Vec<OsString>,
     stdin: PathBuf,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -70,6 +68,7 @@ fn sandbox_exec(
     let sandbox_args = SandboxArgs {
         bin,
         args,
+        env,
         stdin: Some(stdin),
         stdout: Some(stdout),
         stderr: Some(stderr),

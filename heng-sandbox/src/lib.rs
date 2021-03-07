@@ -22,9 +22,12 @@ use structopt::StructOpt;
 
 #[derive(Debug, Default, Serialize, Deserialize, StructOpt)]
 pub struct SandboxArgs {
-    pub bin: OsString,
+    pub bin: PathBuf,
 
     pub args: Vec<OsString>,
+
+    #[structopt(long)]
+    pub env: Vec<OsString>,
 
     #[structopt(long)]
     pub stdin: Option<PathBuf>,
@@ -126,6 +129,10 @@ impl SandboxArgs {
         if let Some(cg_limit_max_pids) = self.cg_limit_max_pids {
             cmd.arg("--cg-limit-max-pids")
                 .arg(cg_limit_max_pids.to_string());
+        }
+
+        for e in &self.env {
+            cmd.arg("--env").arg(e);
         }
 
         cmd.arg("--");

@@ -4,10 +4,11 @@ use crate::SandboxArgs;
 
 use std::convert::Infallible as Never;
 use std::ffi::CString;
-use std::io;
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::prelude::OsStringExt;
 use std::path::Path;
 use std::ptr;
+use std::{env, io};
 
 use anyhow::{Context, Result};
 use fcntl::OFlag;
@@ -49,18 +50,36 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
         Resource::FSIZE.set(rlimit_fsize, rlimit_fsize)?;
     }
 
-    let execvp_bin = CString::new(args.bin.as_bytes())?;
+    let execve_bin = CString::new(args.bin.as_os_str().as_bytes())?;
 
-    let mut c_args = Vec::new();
-    let mut execvp_argv: Vec<*const libc::c_char> = Vec::with_capacity(args.args.len() + 2);
+    let mut cstrings = Vec::new();
+    let mut execve_argv: Vec<*const libc::c_char> = Vec::with_capacity(args.args.len() + 2);
+    let mut execve_env: Vec<*const libc::c_char> = Vec::with_capacity(args.env.len() + 1);
 
-    execvp_argv.push(execvp_bin.as_ptr());
+    execve_argv.push(execve_bin.as_ptr());
     for a in &args.args {
         let c = CString::new(a.as_bytes())?;
-        execvp_argv.push(c.as_ptr());
-        c_args.push(c);
+        execve_argv.push(c.as_ptr());
+        cstrings.push(c);
     }
-    execvp_argv.push(ptr::null());
+    execve_argv.push(ptr::null());
+
+    for e in &args.env {
+        let c = if e.as_bytes().contains(&b'=') {
+            CString::new(e.as_bytes())?
+        } else if let Some(value) = env::var_os(e) {
+            let mut v = Vec::new();
+            v.extend_from_slice(e.as_bytes());
+            v.push(b'=');
+            v.extend(value.into_vec());
+            CString::new(v)?
+        } else {
+            continue;
+        };
+        execve_env.push(c.as_ptr());
+        cstrings.push(c);
+    }
+    execve_env.push(ptr::null());
 
     cgroup
         .child_setup(args, child_pid)
@@ -79,7 +98,13 @@ pub fn run_child(args: &SandboxArgs, cgroup: &Cgroup) -> Result<Never> {
         unistd::setuid(uid).context("failed to set uid")?;
     }
 
-    unsafe { libc::execvp(execvp_bin.as_ptr(), execvp_argv.as_ptr()) };
+    unsafe {
+        libc::execve(
+            execve_bin.as_ptr(),
+            execve_argv.as_ptr(),
+            execve_env.as_ptr(),
+        )
+    };
 
     Err(io::Error::last_os_error())
         .with_context(|| format!("failed to execvp: bin = {:?}", args.bin))
