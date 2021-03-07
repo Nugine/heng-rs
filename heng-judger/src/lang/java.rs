@@ -2,23 +2,15 @@ use heng_utils::os_cmd::OsCmd;
 
 use super::*;
 
-pub struct Rust {
-    pub o2: bool,
-}
+pub struct Java {}
 
-impl Rust {
-    fn exe_name(&self) -> &str {
-        "src"
-    }
-}
-
-impl Language for Rust {
+impl Language for Java {
     fn needs_compile(&self) -> bool {
         true
     }
 
     fn src_name(&self) -> &str {
-        "src.rs"
+        "Main.java"
     }
 
     fn msg_name(&self) -> &str {
@@ -29,16 +21,15 @@ impl Language for Rust {
         let config = inject::<Config>();
 
         let src_path = workspace.join(self.src_name());
-        let exe_path = workspace.join(self.exe_name());
         let msg_path = workspace.join(self.msg_name());
 
-        let mut cmd = OsCmd::new(&config.executor.compilers.rustc);
-        cmd.arg_if(self.o2, "-O");
-        cmd.arg("-o").arg(exe_path);
-        cmd.arg(src_path);
+        let mut cmd = OsCmd::new(&config.executor.compilers.javac);
 
-        cmd.inherit_env("PATH");
-        cmd.add_env("TMPDIR", &workspace);
+        cmd.arg("-J-Xms64m");
+        cmd.arg("-J-Xmx512m");
+        cmd.arg("-encoding").arg("UTF-8");
+        cmd.arg("-sourcepath").arg(".");
+        cmd.arg(src_path);
 
         sandbox_exec(
             workspace,
@@ -46,8 +37,8 @@ impl Language for Rust {
             cmd.args,
             cmd.env,
             "/dev/null".into(),
+            msg_path, // javac's compile error message is writed to stdout
             "/dev/null".into(),
-            msg_path,
             hard_limit,
         )
     }
@@ -60,8 +51,13 @@ impl Language for Rust {
         stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        let exe_path = workspace.join(self.exe_name());
-        let cmd = OsCmd::new(exe_path);
+        let config = inject::<Config>();
+
+        let mut cmd = OsCmd::new(&config.executor.runtimes.java);
+        cmd.arg("-cp").arg(&workspace);
+        cmd.arg("-Xms64m");
+        cmd.arg("-Xmx512m");
+        cmd.arg("Main");
 
         sandbox_exec(
             workspace, cmd.bin, cmd.args, cmd.env, stdin, stdout, stderr, hard_limit,

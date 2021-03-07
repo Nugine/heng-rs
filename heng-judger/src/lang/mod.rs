@@ -1,4 +1,5 @@
 pub mod c_cpp;
+pub mod java;
 pub mod rust;
 
 use crate::Config;
@@ -17,7 +18,6 @@ use nix::unistd::{self, Gid, Uid};
 pub trait Language {
     fn needs_compile(&self) -> bool;
     fn src_name(&self) -> &str;
-    fn exe_name(&self) -> &str;
     fn msg_name(&self) -> &str;
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput>;
     fn run(

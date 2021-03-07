@@ -11,7 +11,6 @@ use heng_protocol::internal::ErrorInfo;
 use heng_utils::auto_join::auto_join;
 
 use anyhow::Result;
-use tracing::error;
 
 pub struct ExecutorModule {
     data_module: Arc<DataModule>,

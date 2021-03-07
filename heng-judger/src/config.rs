@@ -69,6 +69,9 @@ pub struct Executor {
 
     #[validate]
     pub compilers: Compilers,
+
+    #[validate]
+    pub runtimes: Runtimes,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
@@ -82,16 +85,28 @@ pub struct HardLimit {
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Compilers {
     #[validate(custom = "validate_absolute_path")]
-    pub c: PathBuf,
+    pub gcc: PathBuf,
 
     #[validate(custom = "validate_absolute_path")]
-    pub cpp: PathBuf,
+    pub gxx: PathBuf,
 
+    #[validate(custom = "validate_absolute_path")]
+    pub javac: PathBuf,
+
+    #[validate(custom = "validate_absolute_path")]
+    pub rustc: PathBuf,
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Runtimes {
     #[validate(custom = "validate_absolute_path")]
     pub java: PathBuf,
 
     #[validate(custom = "validate_absolute_path")]
-    pub rust: PathBuf,
+    pub node: PathBuf,
+
+    #[validate(custom = "validate_absolute_path")]
+    pub python: PathBuf,
 }
 
 fn validate_absolute_path(path: &PathBuf) -> Result<(), ValidationError> {

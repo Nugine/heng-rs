@@ -1,4 +1,5 @@
 use heng_judger::lang::c_cpp::{CCpp, CCppStd};
+use heng_judger::lang::java::Java;
 use heng_judger::lang::rust::Rust;
 use heng_judger::lang::Language;
 use heng_judger::{lang, Config};
@@ -48,10 +49,10 @@ fn test_aot_lang(
     fs::write(&src_path, source_code)?;
 
     let limit = lang::Limit {
-        cpu_time: 1000,
-        memory: 256 * 1024 * 1024, // 256 MiB
-        output: 256 * 1024 * 1024, // 256 MiB
-        pids: 16,
+        cpu_time: 2000,
+        memory: config.executor.hard_limit.memory.as_u64(),
+        output: config.executor.hard_limit.output.as_u64(),
+        pids: config.executor.hard_limit.pids,
     };
 
     let compile_output = lang
@@ -94,23 +95,43 @@ fn lang_c_cpp() -> Result<()> {
         o2: true,
     };
 
-    let source_code =
-        "#include<iostream>\nint main(){ std::cout<<\"hello\"<<std::endl; return 0; }\n";
+    let source_code = r#"
+        #include<iostream>
+        int main() { 
+            std::cout<<"hello"<<std::endl;
+            return 0;
+        }
+    "#;
     let expected_output = "hello\n";
 
-    test_aot_lang("__test_c_cpp", &ccpp, source_code, expected_output)?;
-
-    Ok(())
+    test_aot_lang("__test_c_cpp", &ccpp, source_code, expected_output)
 }
 
 #[test]
 fn lang_rust() -> Result<()> {
     let rust = Rust { o2: true };
 
-    let source_code = "fn main(){ println!(\"hello\"); }";
+    let source_code = r#"
+        fn main() {
+            println!("hello");
+        }
+    "#;
     let expected_output = "hello\n";
 
-    test_aot_lang("__test_rust", &rust, source_code, expected_output)?;
+    test_aot_lang("__test_rust", &rust, source_code, expected_output)
+}
 
-    Ok(())
+#[test]
+fn lang_java() -> Result<()> {
+    let java = Java {};
+
+    let source_code = r#"
+        public class Main {
+            public static void main(String[] args) {
+                System.out.println("hello");
+            }
+        }
+    "#;
+    let expected_output = "hello\n";
+    test_aot_lang("__test_java", &java, source_code, expected_output)
 }

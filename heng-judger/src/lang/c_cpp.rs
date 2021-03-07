@@ -47,6 +47,12 @@ impl CCppStd {
     }
 }
 
+impl CCpp {
+    fn exe_name(&self) -> &str {
+        "src"
+    }
+}
+
 impl Language for CCpp {
     fn needs_compile(&self) -> bool {
         true
@@ -58,10 +64,6 @@ impl Language for CCpp {
         } else {
             "src.c"
         }
-    }
-
-    fn exe_name(&self) -> &str {
-        "src"
     }
 
     fn msg_name(&self) -> &str {
@@ -78,9 +80,9 @@ impl Language for CCpp {
         let config = inject::<Config>();
 
         let mut cmd = OsCmd::new(if is_cpp {
-            config.executor.compilers.cpp.as_os_str()
+            config.executor.compilers.gxx.as_os_str()
         } else {
-            config.executor.compilers.c.as_os_str()
+            config.executor.compilers.gcc.as_os_str()
         });
 
         cmd.arg("--std").arg(self.std.as_str_gnu());

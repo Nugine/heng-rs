@@ -20,12 +20,17 @@ gid = 1025
 
 [executor.hard_limit]
 cpu_time = 16000
-memory = "256 MiB"
+memory = "512 MiB"
 output = "256 MiB"
-pids = 16
+pids = 64
 
 [executor.compilers]
-c = "/usr/bin/gcc"
-cpp = "/usr/bin/g++"
-java = "/usr/bin/javac"
-rust = "/usr/local/rust/bin/rustc"
+gcc = "/usr/bin/gcc"
+gxx = "/usr/bin/g++"
+javac = "/usr/bin/javac"
+rustc = "/usr/local/rust/bin/rustc"
+
+[executor.runtimes]
+java = "/usr/bin/java"
+node = "/usr/bin/node"
+python = "/usr/bin/python3"
