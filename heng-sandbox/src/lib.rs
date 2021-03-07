@@ -3,6 +3,7 @@
 mod cgroup;
 mod child;
 mod parent;
+mod pipe;
 mod signal;
 
 pub mod nsjail;
@@ -157,20 +158,27 @@ fn libc_call(f: impl FnOnce() -> i32) -> io::Result<u32> {
 }
 
 pub fn run(args: &SandboxArgs) -> Result<SandboxOutput> {
+    if !args.bin.exists() {
+        anyhow::bail!("binary file does not exist: path = {}", args.bin.display());
+    }
+
     let cgroup = Cgroup::new(rand::random()).context("failed to create cgroup")?;
+    let (pipe_tx, pipe_rx) = pipe::create().context("failed to create pipe")?;
 
     let t0 = Instant::now();
     match unsafe { unistd::fork() }.context("failed to fork")? {
         unistd::ForkResult::Parent { child } => {
-            let output = parent::run_parent(&args, child, t0, &cgroup)?;
+            drop(pipe_tx);
+            let output = parent::run_parent(&args, child, t0, &cgroup, pipe_rx)?;
             Ok(output)
         }
         unistd::ForkResult::Child => {
-            if let Err(err) = child::run_child(&args, &cgroup) {
-                eprintln!("failed to prepare child: {:?}", err);
-                process::exit(101);
+            drop(pipe_rx);
+            let result = child::run_child(&args, &cgroup);
+            if let Err(err) = result {
+                let _ = pipe_tx.write_error(err);
             }
-            unreachable!() // after evecvp
+            process::exit(101);
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::cgroup::Cgroup;
+use crate::pipe::PipeRx;
 use crate::signal::async_kill;
 use crate::{libc_call, SandboxArgs, SandboxOutput};
 
@@ -16,6 +17,7 @@ pub fn run_parent(
     child_pid: Pid,
     t0: Instant,
     cgroup: &Cgroup,
+    pipe_rx: PipeRx,
 ) -> Result<SandboxOutput> {
     debug!("child_pid = {}", child_pid);
 
@@ -24,6 +26,12 @@ pub fn run_parent(
     } else {
         None
     };
+
+    let child_result = pipe_rx
+        .read_result()
+        .context("failed to read child result")?;
+
+    child_result.context("child process failed")?;
 
     let (status, rusage) = wait4(child_pid).context("failed to wait4")?;
     let real_duration = t0.elapsed();
