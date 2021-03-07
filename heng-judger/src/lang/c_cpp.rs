@@ -54,6 +54,14 @@ impl CCpp {
 }
 
 impl Language for CCpp {
+    fn lang_name(&self) -> &str {
+        if self.std.is_cpp() {
+            "cpp"
+        } else {
+            "c"
+        }
+    }
+
     fn needs_compile(&self) -> bool {
         true
     }
@@ -99,9 +107,7 @@ impl Language for CCpp {
 
         sandbox_exec(
             workspace,
-            cmd.bin,
-            cmd.args,
-            cmd.env,
+            cmd,
             "/dev/null".into(),
             "/dev/null".into(),
             msg_path,
@@ -119,8 +125,6 @@ impl Language for CCpp {
     ) -> Result<SandboxOutput> {
         let cmd = OsCmd::new(workspace.join(self.exe_name()));
 
-        sandbox_exec(
-            workspace, cmd.bin, cmd.args, cmd.env, stdin, stdout, stderr, hard_limit,
-        )
+        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }
 }

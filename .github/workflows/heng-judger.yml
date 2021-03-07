@@ -25,6 +25,18 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+      - name: Link nodejs
+        run: sudo ln `which node` /usr/bin/node
       - name: Install nsjail
         run: |
           sudo apt update -y
@@ -46,6 +58,14 @@ jobs:
           make all
           sudo cp ./nsjail /usr/local/bin/nsjail
           cd ..
+      - name: Put nsjail config
+        run: |
+          sudo mkdir /etc/nsjail
+          sudo cp ./heng-sandbox/sandbox.cfg /etc/nsjail/sandbox.cfg
+      - name: Mount rust toolchain
+        run: |
+          sudo mkdir /usr/local/rust
+          sudo mount --bind ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu /usr/local/rust
       - uses: actions-rs/cargo@v1
         with:
           command: build
@@ -56,14 +76,6 @@ jobs:
           args: -p heng-judger --tests
       - name: Install heng-sandbox
         run: sudo cp ./target/release/heng-sandbox /usr/local/bin/heng-sandbox
-      - name: Put nsjail config
-        run: |
-          sudo mkdir /etc/nsjail
-          sudo cp ./heng-sandbox/sandbox.cfg /etc/nsjail/sandbox.cfg
-      - name: Mount rust toolchain
-        run: |
-          sudo mkdir /usr/local/rust
-          sudo mount --bind ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu /usr/local/rust
       - name: Integration test
         run: |
           cd heng-judger

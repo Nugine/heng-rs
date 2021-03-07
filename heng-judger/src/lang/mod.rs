@@ -1,5 +1,6 @@
 pub mod c_cpp;
 pub mod java;
+pub mod python;
 pub mod rust;
 
 use crate::Config;
@@ -8,14 +9,16 @@ use heng_sandbox::nsjail::NsjailArgs;
 use heng_sandbox::{SandboxArgs, SandboxOutput};
 use heng_utils::container::inject;
 use heng_utils::math::roundup_div;
+use heng_utils::os_cmd::OsCmd;
 
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 use anyhow::Result;
 use nix::unistd::{self, Gid, Uid};
 
 pub trait Language {
+    fn lang_name(&self) -> &str;
+
     fn needs_compile(&self) -> bool;
     fn src_name(&self) -> &str;
     fn msg_name(&self) -> &str;
@@ -40,9 +43,7 @@ pub struct Limit {
 #[allow(clippy::too_many_arguments)]
 fn sandbox_exec(
     workspace: PathBuf,
-    bin: PathBuf,
-    args: Vec<OsString>,
-    env: Vec<OsString>,
+    cmd: OsCmd,
     stdin: PathBuf,
     stdout: PathBuf,
     stderr: PathBuf,
@@ -66,9 +67,9 @@ fn sandbox_exec(
     let gid = Gid::from_raw(config.executor.gid);
 
     let sandbox_args = SandboxArgs {
-        bin,
-        args,
-        env,
+        bin: cmd.bin,
+        args: cmd.args,
+        env: cmd.env,
         stdin: Some(stdin),
         stdout: Some(stdout),
         stderr: Some(stderr),

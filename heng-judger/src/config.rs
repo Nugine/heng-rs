@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use tracing::error;
 use ubyte::ByteUnit;
 use validator::{Validate, ValidationError};
 
@@ -84,37 +85,50 @@ pub struct HardLimit {
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Compilers {
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub gcc: PathBuf,
 
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub gxx: PathBuf,
 
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub javac: PathBuf,
 
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub rustc: PathBuf,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Runtimes {
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub java: PathBuf,
 
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub node: PathBuf,
 
-    #[validate(custom = "validate_absolute_path")]
+    #[validate(custom = "validate_binary_file_path")]
     pub python: PathBuf,
 }
 
 fn validate_absolute_path(path: &PathBuf) -> Result<(), ValidationError> {
-    if path.is_absolute() {
-        Ok(())
-    } else {
-        Err(ValidationError::new("requires absolute path"))
+    if !path.is_absolute() {
+        return Err(ValidationError::new("requires absolute path"));
     }
+    Ok(())
+}
+
+fn validate_binary_file_path(path: &PathBuf) -> Result<(), ValidationError> {
+    if !path.is_absolute() {
+        return Err(ValidationError::new("requires absolute path"));
+    }
+    let meta = fs::metadata(path).map_err(|err| {
+        error!(%err,"can not get file metadata");
+        ValidationError::new("can not get file metadata")
+    })?;
+    if !meta.is_file() {
+        return Err(ValidationError::new("requires regular file"));
+    }
+    Ok(())
 }
 
 impl Config {

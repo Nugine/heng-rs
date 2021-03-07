@@ -5,6 +5,10 @@ use super::*;
 pub struct Java {}
 
 impl Language for Java {
+    fn lang_name(&self) -> &str {
+        "java"
+    }
+
     fn needs_compile(&self) -> bool {
         true
     }
@@ -33,9 +37,7 @@ impl Language for Java {
 
         sandbox_exec(
             workspace,
-            cmd.bin,
-            cmd.args,
-            cmd.env,
+            cmd,
             "/dev/null".into(),
             msg_path, // javac's compile error message is writed to stdout
             "/dev/null".into(),
@@ -59,8 +61,6 @@ impl Language for Java {
         cmd.arg("-Xmx512m");
         cmd.arg("Main");
 
-        sandbox_exec(
-            workspace, cmd.bin, cmd.args, cmd.env, stdin, stdout, stderr, hard_limit,
-        )
+        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }
 }

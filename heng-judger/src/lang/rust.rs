@@ -13,6 +13,10 @@ impl Rust {
 }
 
 impl Language for Rust {
+    fn lang_name(&self) -> &str {
+        "rust"
+    }
+
     fn needs_compile(&self) -> bool {
         true
     }
@@ -42,9 +46,7 @@ impl Language for Rust {
 
         sandbox_exec(
             workspace,
-            cmd.bin,
-            cmd.args,
-            cmd.env,
+            cmd,
             "/dev/null".into(),
             "/dev/null".into(),
             msg_path,
@@ -63,8 +65,6 @@ impl Language for Rust {
         let exe_path = workspace.join(self.exe_name());
         let cmd = OsCmd::new(exe_path);
 
-        sandbox_exec(
-            workspace, cmd.bin, cmd.args, cmd.env, stdin, stdout, stderr, hard_limit,
-        )
+        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }
 }
