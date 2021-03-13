@@ -3,6 +3,5 @@ members = [
     "heng-controller",
     "heng-judger",
     "heng-protocol",
-    "heng-sandbox",
     "heng-utils",
 ]

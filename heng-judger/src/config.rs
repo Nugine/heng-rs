@@ -57,9 +57,6 @@ pub struct Data {
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Executor {
     #[validate(custom = "validate_absolute_path")]
-    pub nsjail_config: PathBuf,
-
-    #[validate(custom = "validate_absolute_path")]
     pub workspace_root: PathBuf,
 
     pub uid: u32,

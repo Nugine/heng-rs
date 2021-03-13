@@ -32,9 +32,8 @@ impl Language for JavaScript {
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
         let config = inject::<Config>();
-        let src_path = workspace.join(self.src_name());
         let mut cmd = OsCmd::new(&config.executor.runtimes.node);
-        cmd.arg(src_path);
+        cmd.arg(self.src_name());
 
         sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }

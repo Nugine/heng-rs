@@ -3,13 +3,11 @@ on:
     branches:
       - master
     paths:
-      - 'heng-sandbox/**'
       - 'heng-judger/**'
   pull_request:
     branches:
       - master
     paths:
-      - 'heng-sandbox/**'
       - 'heng-judger/**'
 
 name: heng-judger
@@ -38,13 +36,6 @@ jobs:
       - name: Link nodejs
         run: |
           sudo ln `which node` /usr/bin/node
-      - name: Install nsjail
-        run: |
-          ./scripts/ci-install-nsjail.sh
-      - name: Put nsjail config
-        run: |
-          sudo mkdir /etc/nsjail
-          sudo cp ./heng-sandbox/sandbox.cfg /etc/nsjail/sandbox.cfg
       - name: Mount rust toolchain
         run: |
           sudo mkdir /usr/local/rust
@@ -52,14 +43,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: -p heng-sandbox --release
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
           args: -p heng-judger --tests
-      - name: Install heng-sandbox
-        run: |
-          sudo cp ./target/release/heng-sandbox /usr/local/bin/heng-sandbox
       - name: Integration test
         run: |
           cd heng-judger

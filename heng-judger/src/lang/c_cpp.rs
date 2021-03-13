@@ -81,10 +81,6 @@ impl Language for CCpp {
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput> {
         let is_cpp = self.std.is_cpp();
 
-        let src_path = workspace.join(self.src_name());
-        let exe_path = workspace.join(self.exe_name());
-        let msg_path = workspace.join(self.msg_name());
-
         let config = inject::<Config>();
 
         let mut cmd = OsCmd::new(if is_cpp {
@@ -100,8 +96,8 @@ impl Language for CCpp {
         // https://stackoverflow.com/questions/5419366/why-do-i-have-to-explicitly-link-with-libm
         cmd.arg_if(!is_cpp, "-lm");
 
-        cmd.arg("-o").arg(exe_path);
-        cmd.arg(src_path);
+        cmd.arg("-o").arg(self.exe_name());
+        cmd.arg(self.src_name());
 
         cmd.inherit_env("PATH");
 
@@ -110,7 +106,7 @@ impl Language for CCpp {
             cmd,
             "/dev/null".into(),
             "/dev/null".into(),
-            msg_path,
+            self.msg_name().into(),
             hard_limit,
         )
     }
@@ -123,7 +119,7 @@ impl Language for CCpp {
         stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        let cmd = OsCmd::new(workspace.join(self.exe_name()));
+        let cmd = OsCmd::new(self.exe_name());
 
         sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }

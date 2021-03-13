@@ -32,24 +32,20 @@ impl Language for Rust {
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput> {
         let config = inject::<Config>();
 
-        let src_path = workspace.join(self.src_name());
-        let exe_path = workspace.join(self.exe_name());
-        let msg_path = workspace.join(self.msg_name());
-
         let mut cmd = OsCmd::new(&config.executor.compilers.rustc);
         cmd.arg_if(self.o2, "-O");
-        cmd.arg("-o").arg(exe_path);
-        cmd.arg(src_path);
+        cmd.arg("-o").arg(self.exe_name());
+        cmd.arg(self.src_name());
 
-        cmd.inherit_env("PATH");
-        cmd.add_env("TMPDIR", &workspace);
+        cmd.env
+            .push("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:.".into());
 
         sandbox_exec(
             workspace,
             cmd,
             "/dev/null".into(),
             "/dev/null".into(),
-            msg_path,
+            self.msg_name().into(),
             hard_limit,
         )
     }
@@ -62,8 +58,7 @@ impl Language for Rust {
         stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        let exe_path = workspace.join(self.exe_name());
-        let cmd = OsCmd::new(exe_path);
+        let cmd = OsCmd::new(self.exe_name());
 
         sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
     }

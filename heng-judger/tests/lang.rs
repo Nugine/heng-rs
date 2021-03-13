@@ -18,7 +18,7 @@ use tracing::{debug, error};
 fn init() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        std::env::set_var("RUST_LOG", "debug");
+        dotenv::dotenv().ok();
         setup_tracing();
         let config = Config::from_file("heng-judger.toml").unwrap();
         let mut container = Container::new();
@@ -35,6 +35,8 @@ fn test_lang(
 ) -> Result<()> {
     init();
 
+    let _enter = tracing::debug_span!("lang", name = lang.lang_name()).entered();
+
     let config = inject::<Config>();
     let workspace_root = &config.executor.workspace_root;
 
@@ -49,7 +51,7 @@ fn test_lang(
     fs::write(&src_path, source_code)?;
 
     let compile_limit = lang::Limit {
-        cpu_time: 3000,
+        cpu_time: 5000,
         memory: config.executor.hard_limit.memory.as_u64(),
         output: config.executor.hard_limit.output.as_u64(),
         pids: config.executor.hard_limit.pids,
@@ -73,31 +75,36 @@ fn test_lang(
     }
 
     let runtime_limit = lang::Limit {
-        cpu_time: 1000,
+        cpu_time: 5000,
         ..compile_limit
     };
 
-    let userout_path = workspace.join("__user_out");
     let sandbox_output = lang
         .run(
-            workspace,
+            workspace.clone(),
             "/dev/null".into(),
-            userout_path.clone(),
-            "/dev/null".into(),
+            "__user_out".into(),
+            "__user_err".into(),
             &runtime_limit,
         )
         .context("failed to run user process")?;
 
-    debug!(name=?lang.lang_name(), ?sandbox_output);
+    debug!(?sandbox_output);
+
+    let userout = fs::read_to_string(workspace.join("__user_out"))?;
+    let usererr = fs::read_to_string(workspace.join("__user_err"))?;
+
+    debug!("userout:\n{}", userout);
+    debug!("usererr:\n{}", usererr);
+
     assert!(sandbox_output.is_success());
-    let userout = fs::read_to_string(&userout_path)?;
     assert_eq!(userout, expected_output);
 
     Ok(())
 }
 
-#[test]
-fn lang_cpp() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_cpp() -> Result<()> {
     let cpp = CCpp {
         std: CCppStd::Cpp11,
         o2: true,
@@ -115,8 +122,8 @@ fn lang_cpp() -> Result<()> {
     test_lang("__test_cpp", &cpp, source_code, expected_output)
 }
 
-#[test]
-fn lang_c() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_c() -> Result<()> {
     let c = CCpp {
         std: CCppStd::C11,
         o2: true,
@@ -134,8 +141,8 @@ fn lang_c() -> Result<()> {
     test_lang("__test_c", &c, source_code, expected_output)
 }
 
-#[test]
-fn lang_rust() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_rust() -> Result<()> {
     let rust = Rust { o2: true };
 
     let source_code = r#"
@@ -148,8 +155,8 @@ fn lang_rust() -> Result<()> {
     test_lang("__test_rust", &rust, source_code, expected_output)
 }
 
-#[test]
-fn lang_java() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_java() -> Result<()> {
     let java = Java {};
 
     let source_code = r#"
@@ -164,8 +171,8 @@ fn lang_java() -> Result<()> {
     test_lang("__test_java", &java, source_code, expected_output)
 }
 
-#[test]
-fn lang_python() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_python() -> Result<()> {
     let python = Python {};
 
     let source_code = r#"print("hello")"#;
@@ -174,8 +181,8 @@ fn lang_python() -> Result<()> {
     test_lang("__test_python", &python, source_code, expected_output)
 }
 
-#[test]
-fn lang_javascript() -> Result<()> {
+#[tokio::test(flavor = "multi_thread")]
+async fn lang_javascript() -> Result<()> {
     let js = JavaScript {};
 
     let source_code = r#"console.log("hello")"#;
