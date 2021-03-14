@@ -1,8 +1,4 @@
 use super::*;
-use crate::config::Config;
-
-use heng_utils::container::inject;
-use heng_utils::os_cmd::OsCmd;
 
 pub struct CCpp {
     pub std: CCppStd,
@@ -79,15 +75,18 @@ impl Language for CCpp {
     }
 
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput> {
+        let config = inject::<Config>();
+        let c_cpp = &config.executor.c_cpp;
+
         let is_cpp = self.std.is_cpp();
 
-        let config = inject::<Config>();
-
-        let mut cmd = OsCmd::new(if is_cpp {
-            config.executor.compilers.gxx.as_os_str()
+        let cc = if is_cpp {
+            c_cpp.gxx.as_os_str()
         } else {
-            config.executor.compilers.gcc.as_os_str()
-        });
+            c_cpp.gcc.as_os_str()
+        };
+
+        let mut cmd = carapace::Command::new(cc);
 
         cmd.arg("--std").arg(self.std.as_str_gnu());
         cmd.arg("-static");
@@ -99,16 +98,14 @@ impl Language for CCpp {
         cmd.arg("-o").arg(self.exe_name());
         cmd.arg(self.src_name());
 
-        cmd.inherit_env("PATH");
+        cmd.stdio("/dev/null", "/dev/null", self.msg_name());
 
-        sandbox_exec(
-            workspace,
-            cmd,
-            "/dev/null".into(),
-            "/dev/null".into(),
-            self.msg_name().into(),
-            hard_limit,
-        )
+        cmd.bindmount_ro(cc, cc);
+        for mnt in &c_cpp.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
+
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 
     fn run(
@@ -119,8 +116,9 @@ impl Language for CCpp {
         stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        let cmd = OsCmd::new(self.exe_name());
-
-        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
+        let config = inject::<Config>();
+        let mut cmd = carapace::Command::new(self.exe_name());
+        cmd.stdio(stdin, stdout, stderr);
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 }

@@ -1,5 +1,3 @@
-use heng_utils::os_cmd::OsCmd;
-
 use super::*;
 
 pub struct Rust {
@@ -31,23 +29,20 @@ impl Language for Rust {
 
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput> {
         let config = inject::<Config>();
+        let rust = &config.executor.rust;
 
-        let mut cmd = OsCmd::new(&config.executor.compilers.rustc);
+        let mut cmd = carapace::Command::new(&rust.rustc);
         cmd.arg_if(self.o2, "-O");
         cmd.arg("-o").arg(self.exe_name());
         cmd.arg(self.src_name());
+        cmd.stdio("/dev/null", "/dev/null", self.msg_name());
 
-        cmd.env
-            .push("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:.".into());
+        cmd.bindmount_ro(&rust.rustc, &rust.rustc);
+        for mnt in &rust.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
 
-        sandbox_exec(
-            workspace,
-            cmd,
-            "/dev/null".into(),
-            "/dev/null".into(),
-            self.msg_name().into(),
-            hard_limit,
-        )
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 
     fn run(
@@ -58,8 +53,9 @@ impl Language for Rust {
         stderr: PathBuf,
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
-        let cmd = OsCmd::new(self.exe_name());
-
-        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
+        let config = inject::<Config>();
+        let mut cmd = carapace::Command::new(self.exe_name());
+        cmd.stdio(stdin, stdout, stderr);
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 }

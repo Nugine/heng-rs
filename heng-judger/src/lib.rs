@@ -17,6 +17,7 @@ mod login;
 
 pub use self::config::Config;
 use self::data::DataModule;
+use self::exec::ExecutorModule;
 use self::judger::Judger;
 
 use heng_utils::container::{inject, Container};
@@ -31,11 +32,13 @@ type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 pub fn init(config: Config) -> Result<()> {
     let data_module = Arc::new(DataModule::new(&config)?);
+    let executor_module = Arc::new(ExecutorModule::new(&config, data_module.clone())?);
 
     let mut container = Container::new();
 
     container.register(Arc::new(config));
     container.register(data_module);
+    container.register(executor_module);
 
     container.install_global();
     Ok(())

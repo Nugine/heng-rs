@@ -54,46 +54,88 @@ pub struct Executor {
     pub hard_limit: HardLimit,
 
     #[validate]
-    pub compilers: Compilers,
+    pub c_cpp: CCpp,
 
     #[validate]
-    pub runtimes: Runtimes,
+    pub java: Java,
+
+    #[validate]
+    pub javascript: JavaScript,
+
+    #[validate]
+    pub python: Python,
+
+    #[validate]
+    pub rust: Rust,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct HardLimit {
-    pub cpu_time: u64,
+    pub real_time: u64, // milliseconds
+    pub cpu_time: u64,  // milliseconds
     pub memory: ByteUnit,
     pub output: ByteUnit,
     pub pids: u32,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct Compilers {
-    #[validate(custom = "validate_binary_file_path")]
+pub struct CCpp {
     pub gcc: PathBuf,
-
-    #[validate(custom = "validate_binary_file_path")]
     pub gxx: PathBuf,
-
-    #[validate(custom = "validate_binary_file_path")]
-    pub javac: PathBuf,
-
-    #[validate(custom = "validate_binary_file_path")]
-    pub rustc: PathBuf,
+    pub mount: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct Runtimes {
-    #[validate(custom = "validate_binary_file_path")]
+pub struct Java {
+    pub javac: PathBuf,
     pub java: PathBuf,
-
-    #[validate(custom = "validate_binary_file_path")]
-    pub node: PathBuf,
-
-    #[validate(custom = "validate_binary_file_path")]
-    pub python: PathBuf,
+    pub mount: Vec<PathBuf>,
 }
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct JavaScript {
+    pub node: PathBuf,
+    pub mount: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Python {
+    pub python: PathBuf,
+    pub mount: Vec<PathBuf>,
+}
+
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+pub struct Rust {
+    pub rustc: PathBuf,
+    pub mount: Vec<PathBuf>,
+}
+
+// #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+// pub struct Compilers {
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub gcc: PathBuf,
+
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub gxx: PathBuf,
+
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub javac: PathBuf,
+
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub rustc: PathBuf,
+// }
+
+// #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
+// pub struct Runtimes {
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub java: PathBuf,
+
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub node: PathBuf,
+
+//     #[validate(custom = "validate_binary_file_path")]
+//     pub python: PathBuf,
+// }
 
 fn validate_absolute_path(path: &PathBuf) -> Result<(), ValidationError> {
     if !path.is_absolute() {

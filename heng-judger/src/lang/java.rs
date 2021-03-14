@@ -1,5 +1,3 @@
-use heng_utils::os_cmd::OsCmd;
-
 use super::*;
 
 pub struct Java {}
@@ -23,8 +21,9 @@ impl Language for Java {
 
     fn compile(&self, workspace: PathBuf, hard_limit: &Limit) -> Result<SandboxOutput> {
         let config = inject::<Config>();
+        let java = &config.executor.java;
 
-        let mut cmd = OsCmd::new(&config.executor.compilers.javac);
+        let mut cmd = carapace::Command::new(&java.javac);
 
         cmd.arg("-J-Xms64m");
         cmd.arg("-J-Xmx512m");
@@ -32,14 +31,15 @@ impl Language for Java {
         cmd.arg("-sourcepath").arg(".");
         cmd.arg(self.src_name());
 
-        sandbox_exec(
-            workspace,
-            cmd,
-            "/dev/null".into(),
-            self.msg_name().into(), // javac's compile error message is writed to stdout
-            "/dev/null".into(),
-            hard_limit,
-        )
+        // javac's compile error message is writed to stdout
+        cmd.stdio("/dev/null", self.msg_name(), "/dev/null");
+
+        cmd.bindmount_ro(&java.javac, &java.javac);
+        for mnt in &java.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
+
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 
     fn run(
@@ -51,13 +51,20 @@ impl Language for Java {
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
         let config = inject::<Config>();
+        let java = &config.executor.java;
 
-        let mut cmd = OsCmd::new(&config.executor.runtimes.java);
+        let mut cmd = carapace::Command::new(&java.java);
         cmd.arg("-cp").arg(".");
         cmd.arg("-Xms64m");
         cmd.arg("-Xmx512m");
         cmd.arg("Main");
+        cmd.stdio(stdin, stdout, stderr);
 
-        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
+        cmd.bindmount_ro(&java.javac, &java.javac);
+        for mnt in &java.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
+
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 }

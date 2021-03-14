@@ -40,6 +40,10 @@ jobs:
         run: |
           sudo mkdir /usr/local/rust
           sudo mount --bind ~/.rustup/toolchains/stable-x86_64-unknown-linux-gnu /usr/local/rust
+      - name: Mount java home
+        run: |
+          sudo mkdir /usr/local/java
+          sudo mount --bind $JAVA_HOME /usr/local/java
       - uses: actions-rs/cargo@v1
         with:
           command: build

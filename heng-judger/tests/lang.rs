@@ -8,9 +8,11 @@ use heng_judger::{lang, Config};
 
 use heng_utils::container::{inject, Container};
 use heng_utils::tracing::setup_tracing;
+use nix::unistd::{self, Gid, Uid};
 
 use std::fs;
 use std::sync::{Arc, Once};
+use std::time::Instant;
 
 use anyhow::{Context, Result};
 use tracing::{debug, error};
@@ -36,6 +38,7 @@ fn test_lang(
     init();
 
     let _enter = tracing::debug_span!("lang", name = lang.lang_name()).entered();
+    let t0 = Instant::now();
 
     let config = inject::<Config>();
     let workspace_root = &config.executor.workspace_root;
@@ -46,17 +49,25 @@ fn test_lang(
     }
     fs::create_dir_all(&workspace)?;
 
+    unistd::chown(
+        &workspace,
+        Some(Uid::from_raw(config.executor.uid)),
+        Some(Gid::from_raw(config.executor.gid)),
+    )?;
+
     let src_path = workspace.join(lang.src_name());
 
     fs::write(&src_path, source_code)?;
 
     let compile_limit = lang::Limit {
+        real_time: 10000,
         cpu_time: 5000,
         memory: config.executor.hard_limit.memory.as_u64(),
         output: config.executor.hard_limit.output.as_u64(),
         pids: config.executor.hard_limit.pids,
     };
 
+    let t1 = Instant::now();
     if lang.needs_compile() {
         let compile_output = lang
             .compile(workspace.clone(), &compile_limit)
@@ -79,6 +90,7 @@ fn test_lang(
         ..compile_limit
     };
 
+    let t2 = Instant::now();
     let sandbox_output = lang
         .run(
             workspace.clone(),
@@ -96,6 +108,12 @@ fn test_lang(
 
     debug!("userout:\n{}", userout);
     debug!("usererr:\n{}", usererr);
+    debug!(
+        "setup = {:?}, compile = {:?}, run = {:?}",
+        t1 - t0,
+        t2 - t1,
+        t2.elapsed()
+    );
 
     assert!(sandbox_output.is_success());
     assert_eq!(userout, expected_output);
@@ -111,7 +129,7 @@ async fn lang_cpp() -> Result<()> {
     };
 
     let source_code = r#"
-        #include<iostream>
+        #include<bits/stdc++.h>
         int main() { 
             std::cout<<"hello"<<std::endl;
             return 0;

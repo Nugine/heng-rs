@@ -154,7 +154,7 @@ checksum = "631ae5198c9be5e753e5cc215e1bd73c2b466a3565173db433f52bb9d3e66dba"
 [[package]]
 name = "carapace"
 version = "0.2.0-dev"
-source = "git+https://github.com/Nugine/carapace?rev=1cd29466#1cd2946675c507c236edafc2211375fbeeb6ff56"
+source = "git+https://github.com/Nugine/carapace?rev=1c98e47c#1c98e47cce81ad6a4109202f189f6b87316b3179"
 dependencies = [
  "aligned-utils",
  "anyhow",

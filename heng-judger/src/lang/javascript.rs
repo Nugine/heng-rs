@@ -32,9 +32,17 @@ impl Language for JavaScript {
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
         let config = inject::<Config>();
-        let mut cmd = OsCmd::new(&config.executor.runtimes.node);
-        cmd.arg(self.src_name());
+        let js = &config.executor.javascript;
 
-        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
+        let mut cmd = carapace::Command::new(&js.node);
+        cmd.arg(self.src_name());
+        cmd.stdio(stdin, stdout, stderr);
+
+        cmd.bindmount_ro(&js.node, &js.node);
+        for mnt in &js.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
+
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 }

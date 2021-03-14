@@ -1,5 +1,3 @@
-use heng_utils::os_cmd::OsCmd;
-
 use super::*;
 
 pub struct Python {}
@@ -34,10 +32,17 @@ impl Language for Python {
         hard_limit: &Limit,
     ) -> Result<SandboxOutput> {
         let config = inject::<Config>();
+        let python = &config.executor.python;
 
-        let mut cmd = OsCmd::new(&config.executor.runtimes.python);
+        let mut cmd = carapace::Command::new(&python.python);
         cmd.arg(self.src_name());
+        cmd.stdio(stdin, stdout, stderr);
 
-        sandbox_exec(workspace, cmd, stdin, stdout, stderr, hard_limit)
+        cmd.bindmount_ro(&python.python, &python.python);
+        for mnt in &python.mount {
+            cmd.bindmount_ro(mnt, mnt);
+        }
+
+        sandbox_run(cmd, &config, workspace, hard_limit)
     }
 }

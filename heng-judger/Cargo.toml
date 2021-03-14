@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 heng-protocol = { path = "../heng-protocol" }
 heng-utils = { path = "../heng-utils" }
-carapace = { git = "https://github.com/Nugine/carapace", rev = "1cd29466" }
+carapace = { git = "https://github.com/Nugine/carapace", rev = "1c98e47c" }
 anyhow = "1.0.38"
 once_cell = "1.5.2"
 serde = { version = "1.0.123", features = ["derive"] }
