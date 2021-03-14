@@ -627,7 +627,6 @@ dependencies = [
  "heng-protocol",
  "heng-utils",
  "http",
- "mobc-redis",
  "nix",
  "once_cell",
  "rand 0.8.3",

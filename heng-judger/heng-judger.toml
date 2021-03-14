@@ -4,10 +4,6 @@ access_key = "example-ak"
 secret_key = "example-sk"
 rpc_timeout = 10000 # in milliseconds
 
-[redis]
-url = "redis://localhost:6379/1"
-max_open = 10
-
 [data]
 directory = "/tmp/heng-judger/data"
 download_size_limit = "64MiB"

@@ -13,9 +13,6 @@ pub struct Config {
     pub judger: Judger,
 
     #[validate]
-    pub redis: Redis,
-
-    #[validate]
     pub data: Data,
 
     #[validate]
@@ -35,15 +32,6 @@ pub struct Judger {
 
     #[validate(range(min = 1000, max = 60000))]
     pub rpc_timeout: u64, // in milliseconds
-}
-
-#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
-pub struct Redis {
-    #[validate(length(min = 1))]
-    pub url: String,
-
-    #[validate(range(max = 64))]
-    pub max_open: u64,
 }
 
 #[derive(Debug, Clone, Validate, Serialize, Deserialize)]
