@@ -267,7 +267,7 @@ impl Judger {
     }
 
     async fn update_judge(&self, update: UpdateJudgeArgs) -> Result<()> {
-        let res = self.wsrpc(RpcRequest::UpdateJudges(vec![update])).await?;
+        let res = self.wsrpc(RpcRequest::UpdateJudge(update)).await?;
         let output = to_anyhow(res)?;
         if output.is_some() {
             warn!(?output, "unexpected output")
@@ -276,7 +276,7 @@ impl Judger {
     }
 
     async fn finish_judge(&self, finish: FinishJudgeArgs) -> Result<()> {
-        let res = self.wsrpc(RpcRequest::FinishJudges(vec![finish])).await?;
+        let res = self.wsrpc(RpcRequest::FinishJudge(finish)).await?;
         let output = to_anyhow(res)?;
         if output.is_some() {
             warn!(?output, "unexpected output")

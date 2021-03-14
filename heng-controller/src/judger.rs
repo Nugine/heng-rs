@@ -372,18 +372,16 @@ impl Judger {
                 // dbg!(status);
                 RpcResponse::Output(None)
             }
-            RpcRequest::UpdateJudges(update) => {
+            RpcRequest::UpdateJudge(update) => {
                 // dbg!(update);
                 RpcResponse::Output(None)
             }
-            RpcRequest::FinishJudges(args) => {
+            RpcRequest::FinishJudge(finish) => {
                 let module = self.module.upgrade().unwrap();
                 // let mut tasks = self.tasks.write().await;
-                for finish in args {
-                    if let Some((id, (_, finish_tx))) = self.tasks.remove(&*finish.id) {
-                        let _ = finish_tx.send((id, finish.result)).await;
-                        module.available_queue.push(Arc::downgrade(&self)).await;
-                    }
+                if let Some((id, (_, finish_tx))) = self.tasks.remove(&*finish.id) {
+                    let _ = finish_tx.send((id, finish.result)).await;
+                    module.available_queue.push(Arc::downgrade(&self)).await;
                 }
                 RpcResponse::Output(None)
             }

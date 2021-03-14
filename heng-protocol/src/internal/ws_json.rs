@@ -29,8 +29,8 @@ pub enum Request {
     CreateJudge(CreateJudgeArgs),
     Control(Option<PartialConnectionSettings>),
     ReportStatus(ReportStatusArgs),
-    UpdateJudges(Vec<UpdateJudgeArgs>),
-    FinishJudges(Vec<FinishJudgeArgs>),
+    UpdateJudge(UpdateJudgeArgs),
+    FinishJudge(FinishJudgeArgs),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
