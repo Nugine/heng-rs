@@ -24,8 +24,9 @@ use heng_utils::container::{inject, Container};
 use std::sync::Arc;
 
 use anyhow::Result;
+use tokio_tungstenite::MaybeTlsStream;
 
-type WsStream = tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>;
+type WsStream = tokio_tungstenite::WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 type WsMessage = tokio_tungstenite::tungstenite::Message;
 
 pub fn init(config: Config) -> Result<()> {
