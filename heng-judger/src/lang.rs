@@ -51,6 +51,8 @@ pub struct Limit {
 ///
 /// set mount_proc, mount_tmpfs
 ///
+/// set seccomp_forbid_ipc
+///
 /// add env PATH
 ///
 /// add some bindmount_rw and bindmount_ro;
@@ -93,6 +95,7 @@ fn sandbox_run(
     c.priority = Some(-20);
     c.mount_proc = Some("/proc".into());
     c.mount_tmpfs = Some("/tmp".into());
+    c.seccomp_forbid_ipc = true;
 
     c.env.insert(
         0,

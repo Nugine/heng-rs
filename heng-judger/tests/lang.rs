@@ -100,6 +100,7 @@ fn test_lang(
             &runtime_limit,
         )
         .context("failed to run user process")?;
+    let t3 = Instant::now();
 
     debug!(?sandbox_output);
 
@@ -112,7 +113,7 @@ fn test_lang(
         "setup = {:?}, compile = {:?}, run = {:?}",
         t1 - t0,
         t2 - t1,
-        t2.elapsed()
+        t3 - t2,
     );
 
     assert!(sandbox_output.is_success());
